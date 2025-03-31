@@ -71,12 +71,13 @@
     }
 
     async function updateSous(objId, sousId, field, value) {
-      await fetch(`/api/objectifs/${objId}/sous/${sousId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: value })
-      });
-    }
+  await fetch(`${window.location.origin}/api/objectifs/${objId}/sous/${sousId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [field]: value })
+  });
+}
+
 
     async function toggleSousObjectif(objId, sousId) {
       await updateSous(objId, sousId, 'accompli', true);
