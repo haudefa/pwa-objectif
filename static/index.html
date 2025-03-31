@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mes Objectifs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="max-w-xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-md">
+    <h1 class="text-2xl font-bold text-center mb-6">🎯 Mes Objectifs</h1>
+
+    <!-- Formulaire d'ajout d'objectif avec catégorie -->
+    <div class="mb-4 flex flex-col gap-2">
+      <input id="titre" type="text" placeholder="Nom de l’objectif..." class="px-4 py-2 border rounded focus:outline-none focus:ring">
+      <select id="categorie" class="px-4 py-2 border rounded focus:outline-none focus:ring">
+        <option value="Travail">Travail</option>
+        <option value="Physique">Physique</option>
+        <option value="Apprentissage">Apprentissage</option>
+        <option value="Spirituelle">Spirituelle</option>
+      </select>
+      <button onclick="ajouterObjectif()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Ajouter</button>
+    </div>
+
+    <!-- Liste des objectifs -->
+    <div id="liste" class="space-y-6"></div>
+  </div>
+
+  <script>
+    const timers = {};
+
+    async function ajouterObjectif() {
+      const titre = document.getElementById('titre').value;
+      const categorie = document.getElementById('categorie').value;
+      if (!titre.trim()) return;
+      await fetch('/api/objectifs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titre, categorie })
+      });
+      document.getElementById('titre').value = '';
+      chargerObjectifs();
+    }
+
+    async function supprimerObjectif(id) {
+      await fetch(`/api/objectifs/${id}`, { method: 'DELETE' });
+      chargerObjectifs();
+    }
+
+    async function supprimerSousObjectif(objId, sousId) {
+      await fetch(`/api/objectifs/${objId}/sous/${sousId}`, { method: 'DELETE' });
+      chargerObjectifs();
+    }
+
+    async function ajouterSousObjectif(objId, input) {
+      const texte = input.value;
+      if (!texte.trim()) return;
+      await fetch(`/api/objectifs/${objId}/sous`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texte })
+      });
+      input.value = '';
+      chargerObjectifs();
+    }
+
+    async function updateSous(objId, sousId, field, value) {
+      await fetch(`/api/objectifs/${objId}/sous/${sousId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value })
+      });
+    }
+
+    async function toggleSousObjectif(objId, sousId) {
+      await updateSous(objId, sousId, 'accompli', true);
+      chargerObjectifs();
+    }
+
+    async function toggleTimer(objId, sousId, btn) {
+      const key = `${objId}-${sousId}`;
+      if (timers[key]) {
+        clearInterval(timers[key]);
+        timers[key] = null;
+        btn.textContent = 'Start';
+      } else {
+        const startTime = Date.now();
+        timers[key] = setInterval(() => {
+          const temps = Math.floor((Date.now() - startTime) / 1000);
+          updateSous(objId, sousId, 'temps', temps);
+        }, 1000);
+        btn.textContent = 'Stop';
+      }
+    }
+
+    function changePriorite(objId, sousId, priorite) {
+      updateSous(objId, sousId, 'priorite', priorite);
+      chargerObjectifs();
+    }
+
+    function chargerObjectifs() {
+      fetch('/api/objectifs')
+        .then(res => res.json())
+        .then(data => {
+          const liste = document.getElementById('liste');
+          liste.innerHTML = '';
+
+          data.forEach((obj) => {
+            const total = obj.sous_objectifs.length;
+            const done = obj.sous_objectifs.filter(s => s.accompli).length;
+            const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+
+            const card = document.createElement('div');
+            card.className = 'border p-4 rounded bg-white shadow space-y-3';
+
+            card.innerHTML = `
+              <div class="flex justify-between items-center">
+                <div>
+                  <h2 class="font-semibold text-lg">${obj.titre}</h2>
+                  <p class="text-sm text-gray-500">Catégorie : ${obj.categorie}</p>
+                </div>
+                <button onclick="supprimerObjectif('${obj.id}')" class="text-red-500 hover:text-red-700">🗑</button>
+              </div>
+              <div class="flex justify-center my-2">
+                <svg class="w-20 h-20" viewBox="0 0 36 36">
+                  <path class="text-gray-200" stroke="currentColor" stroke-width="3.8" fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                  <path class="text-blue-500" stroke="currentColor" stroke-width="3.8" fill="none"
+                    stroke-dasharray="${percent}, 100" stroke-linecap="round"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                  <text x="18" y="20.35" class="text-sm fill-current text-gray-800" text-anchor="middle">${percent}%</text>
+                </svg>
+              </div>
+            `;
+
+            obj.sous_objectifs.forEach((s) => {
+              const disabled = s.accompli ? 'disabled' : '';
+              const blockCheckbox = s.type === '' || s.priorite === '' ? 'disabled' : '';
+              const sous = document.createElement('div');
+              sous.className = 'p-3 border rounded bg-gray-50 space-y-2';
+              sous.innerHTML = `
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-medium">• ${s.texte}</span>
+                  <div class="flex gap-2 items-center">
+                    <input type="checkbox" ${s.accompli ? 'checked' : ''} ${blockCheckbox} onchange="toggleSousObjectif('${obj.id}', '${s.id}')">
+                    <button onclick="supprimerSousObjectif('${obj.id}', '${s.id}')" class="text-xs text-red-500">✖</button>
+                  </div>
+                </div>
+                <div class="text-sm">État :
+                  <label><input type="radio" name="etat-${s.id}" value="accompli" ${s.etat==='accompli'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'etat', 'accompli')"> Accompli</label>
+                  <label><input type="radio" name="etat-${s.id}" value="non" ${s.etat==='non'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'etat', 'non')"> Non</label>
+                  <label><input type="radio" name="etat-${s.id}" value="attente" ${s.etat==='attente'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'etat', 'attente')"> En attente</label>
+                </div>
+                <div class="text-sm">Type :
+                  <label><input type="radio" name="type-${s.id}" value="maitrisable" ${s.type==='maitrisable'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'type', 'maitrisable')"> Maîtrisable</label>
+                  <label><input type="radio" name="type-${s.id}" value="aleatoire" ${s.type==='aleatoire'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'type', 'aleatoire')"> Aléatoire</label>
+                </div>
+                <div class="text-sm flex items-center gap-2">Priorité :
+                  <div class="w-4 h-4 rounded-full ${s.priorite==='haute'?'bg-red-500':s.priorite==='basse'?'bg-green-500':s.priorite===''?'bg-gray-300':'bg-orange-400'}"></div>
+                  <button onclick="changePriorite('${obj.id}', '${s.id}', 'haute')" class="text-xs px-2 py-1 rounded bg-red-500 text-white">H</button>
+                  <button onclick="changePriorite('${obj.id}', '${s.id}', 'moyenne')" class="text-xs px-2 py-1 rounded bg-orange-500 text-white">M</button>
+                  <button onclick="changePriorite('${obj.id}', '${s.id}', 'basse')" class="text-xs px-2 py-1 rounded bg-green-500 text-white">B</button>
+                </div>
+                <div class="text-sm flex justify-between items-center">
+                  <span>Temps : ${s.temps || 0}s</span>
+                  <button onclick="toggleTimer('${obj.id}', '${s.id}', this)" class="px-3 py-1 text-xs bg-blue-500 text-white rounded">Start</button>
+                </div>
+              `;
+              card.appendChild(sous);
+            });
+
+            const sousInput = document.createElement('div');
+            sousInput.className = 'flex gap-2';
+            sousInput.innerHTML = `
+              <input id="sous-${obj.id}" type="text" placeholder="Ajouter un sous-objectif..." class="flex-1 px-2 py-1 border rounded text-sm">
+              <button onclick="ajouterSousObjectif('${obj.id}', document.getElementById('sous-${obj.id}'))" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">Ajouter</button>
+            `;
+            card.appendChild(sousInput);
+            liste.appendChild(card);
+          });
+        });
+    }
+
+    window.onload = chargerObjectifs;
+  </script>
+</body>
+</html>
