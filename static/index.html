@@ -4,12 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mes Objectifs</title>
-  <link rel="manifest" href="manifest.json">
-  <!-- Pour iPhone -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="apple-touch-icon" href="icon-192.png">
-
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -39,7 +33,7 @@
       const titre = document.getElementById('titre').value;
       const categorie = document.getElementById('categorie').value;
       if (!titre.trim()) return;
-      await fetch('/api/objectifs', {
+      await fetch(`${window.location.origin}/api/objectifs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ titre, categorie })
@@ -49,19 +43,19 @@
     }
 
     async function supprimerObjectif(id) {
-      await fetch(`/api/objectifs/${id}`, { method: 'DELETE' });
+      await fetch(`${window.location.origin}/api/objectifs/${id}`, { method: 'DELETE' });
       chargerObjectifs();
     }
 
     async function supprimerSousObjectif(objId, sousId) {
-      await fetch(`/api/objectifs/${objId}/sous/${sousId}`, { method: 'DELETE' });
+      await fetch(`${window.location.origin}/api/objectifs/${objId}/sous/${sousId}`, { method: 'DELETE' });
       chargerObjectifs();
     }
 
     async function ajouterSousObjectif(objId, input) {
       const texte = input.value;
       if (!texte.trim()) return;
-      await fetch(`/api/objectifs/${objId}/sous`, {
+      await fetch(`${window.location.origin}/api/objectifs/${objId}/sous`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ texte })
@@ -71,13 +65,12 @@
     }
 
     async function updateSous(objId, sousId, field, value) {
-  await fetch(`${window.location.origin}/api/objectifs/${objId}/sous/${sousId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ [field]: value })
-  });
-}
-
+      await fetch(`${window.location.origin}/api/objectifs/${objId}/sous/${sousId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value })
+      });
+    }
 
     async function toggleSousObjectif(objId, sousId) {
       await updateSous(objId, sousId, 'accompli', true);
@@ -100,19 +93,14 @@
       }
     }
 
-    function changePriorite(objId, sousId, priorite) {
-      updateSous(objId, sousId, 'priorite', priorite);
-      chargerObjectifs();
-    }
-
     function chargerObjectifs() {
-      fetch('/api/objectifs')
+      fetch(`${window.location.origin}/api/objectifs`)
         .then(res => res.json())
         .then(data => {
           const liste = document.getElementById('liste');
           liste.innerHTML = '';
 
-          data.forEach((obj) => {
+          data.forEach(obj => {
             const total = obj.sous_objectifs.length;
             const done = obj.sous_objectifs.filter(s => s.accompli).length;
             const percent = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -130,26 +118,22 @@
               </div>
               <div class="flex justify-center my-2">
                 <svg class="w-20 h-20" viewBox="0 0 36 36">
-                  <path class="text-gray-200" stroke="currentColor" stroke-width="3.8" fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                  <path class="text-blue-500" stroke="currentColor" stroke-width="3.8" fill="none"
-                    stroke-dasharray="${percent}, 100" stroke-linecap="round"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                  <path class="text-gray-200" stroke="currentColor" stroke-width="3.8" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                  <path class="text-blue-500" stroke="currentColor" stroke-width="3.8" fill="none" stroke-dasharray="${percent}, 100" stroke-linecap="round" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
                   <text x="18" y="20.35" class="text-sm fill-current text-gray-800" text-anchor="middle">${percent}%</text>
                 </svg>
               </div>
             `;
 
-            obj.sous_objectifs.forEach((s) => {
+            obj.sous_objectifs.forEach(s => {
               const disabled = s.accompli ? 'disabled' : '';
-              const blockCheckbox = s.type === '' || s.priorite === '' ? 'disabled' : '';
               const sous = document.createElement('div');
               sous.className = 'p-3 border rounded bg-gray-50 space-y-2';
               sous.innerHTML = `
                 <div class="flex justify-between items-center">
                   <span class="text-sm font-medium">• ${s.texte}</span>
                   <div class="flex gap-2 items-center">
-                    <input type="checkbox" ${s.accompli ? 'checked' : ''} ${blockCheckbox} onchange="toggleSousObjectif('${obj.id}', '${s.id}')">
+                    <input type="checkbox" ${s.accompli ? 'checked' : ''} onchange="toggleSousObjectif('${obj.id}', '${s.id}')">
                     <button onclick="supprimerSousObjectif('${obj.id}', '${s.id}')" class="text-xs text-red-500">✖</button>
                   </div>
                 </div>
@@ -163,10 +147,10 @@
                   <label><input type="radio" name="type-${s.id}" value="aleatoire" ${s.type==='aleatoire'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'type', 'aleatoire')"> Aléatoire</label>
                 </div>
                 <div class="text-sm flex items-center gap-2">Priorité :
-                  <div class="w-4 h-4 rounded-full ${s.priorite==='haute'?'bg-red-500':s.priorite==='basse'?'bg-green-500':s.priorite===''?'bg-gray-300':'bg-orange-400'}"></div>
-                  <button onclick="changePriorite('${obj.id}', '${s.id}', 'haute')" class="text-xs px-2 py-1 rounded bg-red-500 text-white">H</button>
-                  <button onclick="changePriorite('${obj.id}', '${s.id}', 'moyenne')" class="text-xs px-2 py-1 rounded bg-orange-500 text-white">M</button>
-                  <button onclick="changePriorite('${obj.id}', '${s.id}', 'basse')" class="text-xs px-2 py-1 rounded bg-green-500 text-white">B</button>
+                  <div class="w-4 h-4 rounded-full ${s.priorite==='haute'?'bg-red-500':s.priorite==='basse'?'bg-green-500':'bg-orange-400'}"></div>
+                  <button onclick="updateSous('${obj.id}', '${s.id}', 'priorite', 'haute')" class="text-xs px-2 py-1 rounded bg-red-500 text-white">H</button>
+                  <button onclick="updateSous('${obj.id}', '${s.id}', 'priorite', 'moyenne')" class="text-xs px-2 py-1 rounded bg-orange-500 text-white">M</button>
+                  <button onclick="updateSous('${obj.id}', '${s.id}', 'priorite', 'basse')" class="text-xs px-2 py-1 rounded bg-green-500 text-white">B</button>
                 </div>
                 <div class="text-sm flex justify-between items-center">
                   <span>Temps : ${s.temps || 0}s</span>
@@ -189,12 +173,6 @@
     }
 
     window.onload = chargerObjectifs;
-    if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('service-worker.js')
-    .then(() => console.log("✅ Service worker enregistré"))
-    .catch(err => console.error("Erreur SW:", err));
-}
-
   </script>
 </body>
 </html>
