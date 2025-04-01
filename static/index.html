@@ -1,35 +1,39 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mes Objectifs</title>
   <!-- Favicon et PWA Icons -->
-<link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="96x96" href="/static/icons/favicon-96x96.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/web-app-manifest-192x192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="/static/icons/web-app-manifest-512x512.png">
-<link rel="icon" type="image/svg+xml" href="/static/icons/favicon.svg">
-<link rel="shortcut icon" href="/static/icons/favicon.ico">
-<link rel="manifest" href="/static/icons/site.webmanifest">
-<meta name="theme-color" content="#3b82f6">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="/static/icons/favicon-96x96.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/web-app-manifest-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/icons/web-app-manifest-512x512.png">
+  <link rel="icon" type="image/svg+xml" href="/static/icons/favicon.svg">
+  <link rel="shortcut icon" href="/static/icons/favicon.ico">
+  <link rel="manifest" href="/static/icons/site.webmanifest">
+  <meta name="theme-color" content="#3b82f6">
 
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-gray-100 text-gray-800">
   <div class="max-w-xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-md">
     <h1 class="text-2xl font-bold text-center mb-6">🎯 Mes Objectifs</h1>
 
     <!-- Formulaire d'ajout d'objectif avec catégorie -->
     <div class="mb-4 flex flex-col gap-2">
-      <input id="titre" type="text" placeholder="Nom de l’objectif..." class="px-4 py-2 border rounded focus:outline-none focus:ring">
+      <input id="titre" type="text" placeholder="Nom de l’objectif..."
+        class="px-4 py-2 border rounded focus:outline-none focus:ring">
       <select id="categorie" class="px-4 py-2 border rounded focus:outline-none focus:ring">
         <option value="Travail">Travail</option>
         <option value="Physique">Physique</option>
         <option value="Apprentissage">Apprentissage</option>
         <option value="Spirituelle">Spirituelle</option>
       </select>
-      <button onclick="ajouterObjectif()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Ajouter</button>
+      <button onclick="ajouterObjectif()"
+        class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Ajouter</button>
     </div>
 
     <!-- Liste des objectifs -->
@@ -148,20 +152,29 @@
                   </div>
                 </div>
                 <div class="text-sm">État :
-                  <label><input type="radio" name="etat-${s.id}" value="accompli" ${s.etat==='accompli'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'etat', 'accompli')"> Accompli</label>
-                  <label><input type="radio" name="etat-${s.id}" value="non" ${s.etat==='non'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'etat', 'non')"> Non</label>
-                  <label><input type="radio" name="etat-${s.id}" value="attente" ${s.etat==='attente'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'etat', 'attente')"> En attente</label>
+                  <label><input type="radio" name="etat-${s.id}" value="accompli" ${s.etat === 'accompli' ? 'checked' : ''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'etat', 'accompli')"> Accompli</label>
+                  <label><input type="radio" name="etat-${s.id}" value="non" ${s.etat === 'non' ? 'checked' : ''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'etat', 'non')"> Non</label>
+                  <label><input type="radio" name="etat-${s.id}" value="attente" ${s.etat === 'attente' ? 'checked' : ''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'etat', 'attente')"> En attente</label>
                 </div>
                 <div class="text-sm">Type :
-                  <label><input type="radio" name="type-${s.id}" value="maitrisable" ${s.type==='maitrisable'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'type', 'maitrisable')"> Maîtrisable</label>
-                  <label><input type="radio" name="type-${s.id}" value="aleatoire" ${s.type==='aleatoire'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'type', 'aleatoire')"> Aléatoire</label>
+                  <label><input type="radio" name="type-${s.id}" value="maitrisable" ${s.type === 'maitrisable' ? 'checked' : ''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'type', 'maitrisable')"> Maîtrisable</label>
+                  <label><input type="radio" name="type-${s.id}" value="aleatoire" ${s.type === 'aleatoire' ? 'checked' : ''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'type', 'aleatoire')"> Aléatoire</label>
                 </div>
-                <div class="text-sm flex items-center gap-2">Priorité :
-                  <div class="w-4 h-4 rounded-full ${s.priorite==='haute'?'bg-red-500':s.priorite==='basse'?'bg-green-500':'bg-orange-400'}"></div>
-                  <button onclick="updateSous('${obj.id}', '${s.id}', 'priorite', 'haute')" class="text-xs px-2 py-1 rounded bg-red-500 text-white">H</button>
-                  <button onclick="updateSous('${obj.id}', '${s.id}', 'priorite', 'moyenne')" class="text-xs px-2 py-1 rounded bg-orange-500 text-white">M</button>
-                  <button onclick="updateSous('${obj.id}', '${s.id}', 'priorite', 'basse')" class="text-xs px-2 py-1 rounded bg-green-500 text-white">B</button>
-                </div>
+                <div class="text-sm flex items-center gap-2">
+  <span>Priorité :</span>
+  <span class="text-xs font-semibold px-2 py-1 rounded
+    ${s.priorite === 'haute' ? 'bg-red-500 text-white' :
+                  s.priorite === 'moyenne' ? 'bg-orange-500 text-white' :
+                    s.priorite === 'basse' ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'}">
+    ${s.priorite || 'Non défini'}
+  </span>
+  <div class="flex gap-1">
+    <button onclick="changePriorite('${obj.id}', '${s.id}', 'haute')" class="text-xs px-2 py-1 rounded bg-red-500 text-white hover:bg-red-600">Haute</button>
+    <button onclick="changePriorite('${obj.id}', '${s.id}', 'moyenne')" class="text-xs px-2 py-1 rounded bg-orange-500 text-white hover:bg-orange-600">Moyenne</button>
+    <button onclick="changePriorite('${obj.id}', '${s.id}', 'basse')" class="text-xs px-2 py-1 rounded bg-green-500 text-white hover:bg-green-600">Basse</button>
+  </div>
+</div>
+
                 <div class="text-sm flex justify-between items-center">
                   <span>Temps : ${s.temps || 0}s</span>
                   <button onclick="toggleTimer('${obj.id}', '${s.id}', this)" class="px-3 py-1 text-xs bg-blue-500 text-white rounded">Start</button>
@@ -185,4 +198,5 @@
     window.onload = chargerObjectifs;
   </script>
 </body>
+
 </html>
