@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mes Objectifs</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -78,7 +79,6 @@
         input.placeholder = "Champ requis";
         return;
       }
-
       input.classList.remove("border-red-500");
 
       await fetch(`/api/objectifs/${objId}/sous`, {
@@ -100,6 +100,14 @@
     }
 
     async function toggleSousObjectif(objId, sousId) {
+      const checkbox = document.getElementById(`check-${sousId}`);
+      const etat = document.querySelector(`input[name='etat-${sousId}']:checked`);
+      const type = document.querySelector(`input[name='type-${sousId}']:checked`);
+      if (!etat || !type) {
+        alert("Veuillez sélectionner un état et un type avant de valider");
+        checkbox.checked = false;
+        return;
+      }
       await updateSous(objId, sousId, 'accompli', true);
       chargerObjectifs();
     }
@@ -120,6 +128,14 @@
       }
     }
 
+    function changerPrioriteEtStyle(select, objId, sousId) {
+      const priorite = select.value;
+      updateSous(objId, sousId, 'priorite', priorite);
+
+      select.className = 'text-white text-xs px-2 py-1 rounded ' +
+        (priorite === 'haute' ? 'bg-red-500' : priorite === 'basse' ? 'bg-green-500' : 'bg-orange-500');
+    }
+
     function chargerObjectifs() {
       safeFetch('/api/objectifs').then(data => {
         if (!data) return;
@@ -127,7 +143,82 @@
         liste.innerHTML = '';
 
         data.forEach((obj) => {
-          // code d’affichage des cartes et sous-objectifs inchangé ici...
+          const total = obj.sous_objectifs.length;
+          const done = obj.sous_objectifs.filter(s => s.accompli).length;
+          const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+
+          const card = document.createElement('div');
+          card.className = 'border p-4 rounded bg-white shadow space-y-3';
+          card.innerHTML = `
+            <div class="flex justify-between items-center">
+              <div>
+                <h2 class="font-semibold text-lg">${obj.titre}</h2>
+                <p class="text-sm text-gray-500">Catégorie : ${obj.categorie}</p>
+              </div>
+              <button onclick="supprimerObjectif('${obj.id}')" class="text-red-500 hover:text-red-700">🗑</button>
+            </div>
+            <div class="flex justify-center my-2">
+              <svg class="w-20 h-20" viewBox="0 0 36 36">
+                <path class="text-gray-200" stroke="currentColor" stroke-width="3.8" fill="none"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                <path class="text-blue-500" stroke="currentColor" stroke-width="3.8" fill="none"
+                  stroke-dasharray="${percent}, 100" stroke-linecap="round"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                <text x="18" y="20.35" class="text-sm fill-current text-gray-800" text-anchor="middle">${percent}%</text>
+              </svg>
+            </div>
+          `;
+
+          obj.sous_objectifs.forEach((s) => {
+            const sous = document.createElement('div');
+            sous.className = 'p-3 border rounded bg-gray-50 space-y-2';
+            sous.innerHTML = `
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium">• ${s.texte}</span>
+                <div class="flex gap-2 items-center">
+                  <input id="check-${s.id}" type="checkbox" ${s.accompli ? 'checked' : ''} onchange="toggleSousObjectif('${obj.id}', '${s.id}')">
+                  <button onclick="supprimerSousObjectif('${obj.id}', '${s.id}')" class="text-xs text-red-500">✖</button>
+                </div>
+              </div>
+              <div class="text-sm">État :
+                <label><input type="radio" name="etat-${s.id}" value="accompli" ${s.etat==='accompli'?'checked':''}> Accompli</label>
+                <label><input type="radio" name="etat-${s.id}" value="non" ${s.etat==='non'?'checked':''}> Non</label>
+                <label><input type="radio" name="etat-${s.id}" value="attente" ${s.etat==='attente'?'checked':''}> En attente</label>
+              </div>
+              <div class="text-sm">Type :
+                <label><input type="radio" name="type-${s.id}" value="maitrisable" ${s.type==='maitrisable'?'checked':''}> Maîtrisable</label>
+                <label><input type="radio" name="type-${s.id}" value="aleatoire" ${s.type==='aleatoire'?'checked':''}> Aléatoire</label>
+              </div>
+              <div class="text-sm flex items-center gap-2">
+                Priorité :
+                <select onchange="changerPrioriteEtStyle(this, '${obj.id}', '${s.id}')">
+                  <option value="haute" ${s.priorite==='haute'?'selected':''}>Haute</option>
+                  <option value="moyenne" ${s.priorite==='moyenne'?'selected':''}>Moyenne</option>
+                  <option value="basse" ${s.priorite==='basse'?'selected':''}>Basse</option>
+                </select>
+              </div>
+              <div class="text-sm flex justify-between items-center">
+                <span>Temps : ${s.temps || 0}s</span>
+                <button onclick="toggleTimer('${obj.id}', '${s.id}', this)" class="px-3 py-1 text-xs bg-blue-500 text-white rounded">Start</button>
+              </div>
+            `;
+            card.appendChild(sous);
+
+            setTimeout(() => {
+              const select = sous.querySelector("select");
+              if (select) changerPrioriteEtStyle(select, obj.id, s.id);
+            }, 0);
+          });
+
+          const sousInput = document.createElement('div');
+          sousInput.className = 'flex gap-2';
+          sousInput.innerHTML = `
+            <input id="sous-${obj.id}" type="text" placeholder="Ajouter un sous-objectif..." class="flex-1 px-2 py-1 border rounded text-sm">
+            <button onclick="ajouterSousObjectif('${obj.id}', document.getElementById('sous-${obj.id}'))" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">Ajouter</button>
+          `;
+          card.appendChild(sousInput);
+
+          liste.appendChild(card);
         });
       });
     }
