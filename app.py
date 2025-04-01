@@ -28,8 +28,10 @@ def create_objectif():
     new_obj = {
         "titre": data['titre'],
         "categorie": data.get('categorie', 'Non défini'),
-        "user_id": data.get('user_id')  # À automatiser avec auth plus tard
     }
+    if data.get("user_id"):
+        new_obj["user_id"] = data["user_id"]
+
     supabase.table("objectifs").insert(new_obj).execute()
     return jsonify(success=True)
 
@@ -64,5 +66,11 @@ def delete_sous_objectif(objectif_id, sous_id):
     supabase.table("sous_objectifs").delete().eq("id", sous_id).eq("objectif_id", objectif_id).execute()
     return jsonify(success=True)
 
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory('static', 'favicon.ico')
