@@ -8,7 +8,24 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 text-gray-800">
-  <div class="max-w-xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-md">
+
+  <!-- Section AUTHENTIFICATION -->
+  <div id="auth" class="max-w-xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-md space-y-2">
+    <h2 class="text-xl font-semibold">Connexion / Inscription</h2>
+    <input id="email" type="email" placeholder="Email" class="px-4 py-2 border rounded w-full">
+    <input id="password" type="password" placeholder="Mot de passe" class="px-4 py-2 border rounded w-full">
+    <div class="flex gap-2">
+      <button onclick="signup()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Inscription</button>
+      <button onclick="login()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Connexion</button>
+    </div>
+  </div>
+
+  <div id="logout" class="hidden text-center mt-4">
+    <button onclick="logout()" class="text-sm text-blue-500 underline">Déconnexion</button>
+  </div>
+
+  <!-- Section OBJECTIFS -->
+  <div id="objectifs" class="max-w-xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-md hidden">
     <h1 class="text-2xl font-bold text-center mb-6">🎯 Mes Objectifs</h1>
 
     <div class="mb-4 flex flex-col gap-2">
@@ -28,6 +45,69 @@
   <script>
     const timers = {};
 
+    function verifierConnexion() {
+      const user_id = localStorage.getItem('user_id');
+      const authSection = document.getElementById('auth');
+      const objectifsSection = document.getElementById('objectifs');
+      const logoutBtn = document.getElementById('logout');
+
+      if (!user_id) {
+        authSection.style.display = 'block';
+        objectifsSection.style.display = 'none';
+        logoutBtn.style.display = 'none';
+      } else {
+        authSection.style.display = 'none';
+        objectifsSection.style.display = 'block';
+        logoutBtn.style.display = 'block';
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('user_id');
+      localStorage.removeItem('access_token');
+      location.reload();
+    }
+
+    async function signup() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert("Inscription réussie ! Vérifie ton email.");
+      } else {
+        alert("Erreur inscription : " + data.error);
+      }
+    }
+
+    async function login() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('access_token', data.access_token);
+        localStorage.setItem('user_id', data.user.id);
+        alert("Connexion réussie !");
+        verifierConnexion();
+        chargerObjectifs();
+      } else {
+        alert("Erreur connexion : " + data.error);
+      }
+    }
+
     async function safeFetch(url, options) {
       try {
         const res = await fetch(url, options);
@@ -43,10 +123,11 @@
       const titre = document.getElementById('titre');
       const categorie = document.getElementById('categorie');
       const titreVal = titre.value.trim();
+      const user_id = localStorage.getItem('user_id');
 
-      if (!titreVal) {
+      if (!titreVal || !user_id) {
         titre.classList.add("border-red-500");
-        titre.placeholder = "Titre requis";
+        titre.placeholder = "Titre requis ou utilisateur non connecté";
         return;
       }
 
@@ -55,7 +136,7 @@
       await fetch('/api/objectifs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ titre: titreVal, categorie: categorie.value })
+        body: JSON.stringify({ titre: titreVal, categorie: categorie.value, user_id })
       });
 
       titre.value = '';
@@ -223,7 +304,12 @@
       });
     }
 
-    window.onload = chargerObjectifs;
+    window.onload = () => {
+      verifierConnexion();
+      if (localStorage.getItem('user_id')) {
+        chargerObjectifs();
+      }
+    };
   </script>
 </body>
 </html>
