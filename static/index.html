@@ -2,23 +2,23 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Mes Objectifs</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 text-gray-800">
-  <div class="max-w-xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-md">
+<body class="bg-gray-100 text-gray-800 min-h-screen overflow-x-hidden pb-20">
+  <div class="max-w-xl mx-auto mt-10 p-4 sm:p-6 bg-white rounded-xl shadow-md">
     <h1 class="text-2xl font-bold text-center mb-6">🎯 Mes Objectifs</h1>
 
-    <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-      <input id="titre" type="text" placeholder="Nom de l’objectif..." class="flex-1 px-4 py-2 border rounded focus:outline-none focus:ring text-sm">
-      <select id="categorie" class="px-4 py-2 border rounded focus:outline-none focus:ring text-sm">
+    <div class="mb-4 flex flex-col gap-2 w-full">
+      <input id="titre" type="text" placeholder="Nom de l’objectif..." class="px-4 py-2 border rounded focus:outline-none focus:ring w-full">
+      <select id="categorie" class="px-4 py-2 border rounded focus:outline-none focus:ring w-full">
         <option value="Travail">Travail</option>
         <option value="Physique">Physique</option>
         <option value="Apprentissage">Apprentissage</option>
         <option value="Spirituelle">Spirituelle</option>
       </select>
-      <button onclick="ajouterObjectif()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm whitespace-nowrap">Ajouter</button>
+      <button onclick="ajouterObjectif()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">Ajouter</button>
     </div>
 
     <div id="liste" class="space-y-6"></div>
