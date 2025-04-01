@@ -10,19 +10,17 @@
   <div class="max-w-xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-md">
     <h1 class="text-2xl font-bold text-center mb-6">🎯 Mes Objectifs</h1>
 
-    <!-- Formulaire d'ajout d'objectif avec catégorie -->
-    <div class="mb-4 flex flex-col gap-2">
-      <input id="titre" type="text" placeholder="Nom de l’objectif..." class="px-4 py-2 border rounded focus:outline-none focus:ring">
-      <select id="categorie" class="px-4 py-2 border rounded focus:outline-none focus:ring">
+    <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+      <input id="titre" type="text" placeholder="Nom de l’objectif..." class="flex-1 px-4 py-2 border rounded focus:outline-none focus:ring text-sm">
+      <select id="categorie" class="px-4 py-2 border rounded focus:outline-none focus:ring text-sm">
         <option value="Travail">Travail</option>
         <option value="Physique">Physique</option>
         <option value="Apprentissage">Apprentissage</option>
         <option value="Spirituelle">Spirituelle</option>
       </select>
-      <button onclick="ajouterObjectif()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Ajouter</button>
+      <button onclick="ajouterObjectif()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm whitespace-nowrap">Ajouter</button>
     </div>
 
-    <!-- Liste des objectifs -->
     <div id="liste" class="space-y-6"></div>
   </div>
 
@@ -42,20 +40,20 @@
       chargerObjectifs();
     }
 
-    async function supprimerObjectif(i) {
-      await fetch(`/api/objectifs/${i}`, { method: 'DELETE' });
+    async function supprimerObjectif(objId) {
+      await fetch(`/api/objectifs/${objId}`, { method: 'DELETE' });
       chargerObjectifs();
     }
 
-    async function supprimerSousObjectif(i, j) {
-      await fetch(`/api/objectifs/${i}/sous/${j}`, { method: 'DELETE' });
+    async function supprimerSousObjectif(objId, sousId) {
+      await fetch(`/api/objectifs/${objId}/sous/${sousId}`, { method: 'DELETE' });
       chargerObjectifs();
     }
 
-    async function ajouterSousObjectif(i, input) {
+    async function ajouterSousObjectif(objId, input) {
       const texte = input.value;
       if (!texte.trim()) return;
-      await fetch(`/api/objectifs/${i}/sous`, {
+      await fetch(`/api/objectifs/${objId}/sous`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ texte })
@@ -64,34 +62,34 @@
       chargerObjectifs();
     }
 
-    async function updateSous(i, j, field, value) {
-      await fetch(`/api/objectifs/${i}/sous/${j}`, {
+    async function updateSous(objId, sousId, field, value) {
+      await fetch(`/api/objectifs/${objId}/sous/${sousId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value })
       });
-    }
 
-    function changerPrioriteEtStyle(select, i, j) {
-      const priorite = select.value;
-      updateSous(i, j, 'priorite', priorite);
-
-      if (priorite === 'haute') {
-        select.className = 'bg-red-500 text-white text-xs px-2 py-1 rounded';
-      } else if (priorite === 'moyenne') {
-        select.className = 'bg-orange-500 text-white text-xs px-2 py-1 rounded';
-      } else if (priorite === 'basse') {
-        select.className = 'bg-green-500 text-white text-xs px-2 py-1 rounded';
+      if (field === 'type' || field === 'etat') {
+        chargerObjectifs();
       }
     }
 
-    async function toggleSousObjectif(i, j) {
-      await updateSous(i, j, 'accompli', true);
+    function changerPrioriteEtStyle(select, objId, sousId) {
+      const priorite = select.value;
+      updateSous(objId, sousId, 'priorite', priorite);
+      select.className = 'text-xs rounded px-2 py-1 border focus:outline-none ' +
+        (priorite === 'haute' ? 'bg-red-500 text-white' :
+         priorite === 'moyenne' ? 'bg-orange-500 text-white' :
+         'bg-green-500 text-white');
+    }
+
+    async function toggleSousObjectif(objId, sousId) {
+      await updateSous(objId, sousId, 'accompli', true);
       chargerObjectifs();
     }
 
-    async function toggleTimer(i, j, btn) {
-      const key = `${i}-${j}`;
+    async function toggleTimer(objId, sousId, btn) {
+      const key = `${objId}-${sousId}`;
       if (timers[key]) {
         clearInterval(timers[key]);
         timers[key] = null;
@@ -100,7 +98,7 @@
         const startTime = Date.now();
         timers[key] = setInterval(() => {
           const temps = Math.floor((Date.now() - startTime) / 1000);
-          updateSous(i, j, 'temps', temps);
+          updateSous(objId, sousId, 'temps', temps);
         }, 1000);
         btn.textContent = 'Stop';
       }
@@ -113,24 +111,24 @@
           const liste = document.getElementById('liste');
           liste.innerHTML = '';
 
-          data.forEach((obj, i) => {
+          data.forEach((obj) => {
             const total = obj.sous_objectifs.length;
             const done = obj.sous_objectifs.filter(s => s.accompli).length;
             const percent = total > 0 ? Math.round((done / total) * 100) : 0;
 
             const card = document.createElement('div');
-            card.className = 'border p-4 rounded bg-white shadow space-y-3';
+            card.className = 'border p-3 sm:p-4 rounded bg-white shadow space-y-4';
 
             card.innerHTML = `
-              <div class="flex justify-between items-center">
+              <div class="flex justify-between items-center flex-wrap gap-2">
                 <div>
-                  <h2 class="font-semibold text-lg">${obj.titre}</h2>
+                  <h2 class="font-semibold text-base sm:text-lg">${obj.titre}</h2>
                   <p class="text-sm text-gray-500">Catégorie : ${obj.categorie}</p>
                 </div>
-                <button onclick="supprimerObjectif(${i})" class="text-red-500 hover:text-red-700">🗑</button>
+                <button onclick="supprimerObjectif('${obj.id}')" class="text-red-500 hover:text-red-700 text-sm">🗑</button>
               </div>
-              <div class="flex justify-center my-2">
-                <svg class="w-20 h-20" viewBox="0 0 36 36">
+              <div class="flex justify-center">
+                <svg class="w-16 h-16 sm:w-20 sm:h-20" viewBox="0 0 36 36">
                   <path class="text-gray-200" stroke="currentColor" stroke-width="3.8" fill="none"
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
                   <path class="text-blue-500" stroke="currentColor" stroke-width="3.8" fill="none"
@@ -141,52 +139,52 @@
               </div>
             `;
 
-            obj.sous_objectifs.forEach((s, j) => {
+            obj.sous_objectifs.forEach((s) => {
               const disabled = s.accompli ? 'disabled' : '';
+              const checkboxDisabled = (!s.type || !s.etat || s.accompli) ? 'disabled title="Veuillez choisir un état et un type avant de cocher"' : '';
               const sous = document.createElement('div');
-              sous.className = 'p-3 border rounded bg-gray-50 space-y-2';
+              sous.className = 'p-2 border rounded bg-gray-50 space-y-2 text-sm';
               sous.innerHTML = `
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-medium">• ${s.texte}</span>
+                <div class="flex flex-col sm:flex-row justify-between gap-2">
+                  <span class="font-medium">• ${s.texte}</span>
                   <div class="flex gap-2 items-center">
-                    <input type="checkbox" ${s.accompli ? 'checked' : ''} onchange="toggleSousObjectif(${i}, ${j})">
-                    <button onclick="supprimerSousObjectif(${i}, ${j})" class="text-xs text-red-500">✖</button>
+                    <input type="checkbox" ${s.accompli ? 'checked' : ''} ${checkboxDisabled} onchange="toggleSousObjectif('${obj.id}', '${s.id}')">
+                    <select onchange="changerPrioriteEtStyle(this, '${obj.id}', '${s.id}')" class="text-xs rounded px-2 py-1 border">
+                      <option value="haute" ${s.priorite==='haute'?'selected':''}>Haute</option>
+                      <option value="moyenne" ${s.priorite==='moyenne'?'selected':''}>Moyenne</option>
+                      <option value="basse" ${s.priorite==='basse'?'selected':''}>Basse</option>
+                    </select>
+                    <button onclick="supprimerSousObjectif('${obj.id}', '${s.id}')" class="text-xs text-red-500">✖</button>
                   </div>
                 </div>
-                <div class="text-sm">État :
-                  <label><input type="radio" name="etat-${i}-${j}" value="accompli" ${s.etat==='accompli'?'checked':''} ${disabled} onchange="updateSous(${i}, ${j}, 'etat', 'accompli')"> Accompli</label>
-                  <label><input type="radio" name="etat-${i}-${j}" value="non" ${s.etat==='non'?'checked':''} ${disabled} onchange="updateSous(${i}, ${j}, 'etat', 'non')"> Non</label>
-                  <label><input type="radio" name="etat-${i}-${j}" value="attente" ${s.etat==='attente'?'checked':''} ${disabled} onchange="updateSous(${i}, ${j}, 'etat', 'attente')"> En attente</label>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div class="flex flex-wrap gap-3">
+                    <label><input type="radio" name="etat-${s.id}" value="accompli" ${s.etat==='accompli'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'etat', 'accompli')"> Accompli</label>
+                    <label><input type="radio" name="etat-${s.id}" value="non" ${s.etat==='non'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'etat', 'non')"> Non</label>
+                    <label><input type="radio" name="etat-${s.id}" value="attente" ${s.etat==='attente'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'etat', 'attente')"> En attente</label>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span>Temps : ${s.temps || 0}s</span>
+                    <button onclick="toggleTimer('${obj.id}', '${s.id}', this)" class="px-2 py-1 text-xs bg-blue-500 text-white rounded">Start</button>
+                  </div>
                 </div>
-                <div class="text-sm">Type :
-                  <label><input type="radio" name="type-${i}-${j}" value="maitrisable" ${s.type==='maitrisable'?'checked':''} ${disabled} onchange="updateSous(${i}, ${j}, 'type', 'maitrisable')"> Maîtrisable</label>
-                  <label><input type="radio" name="type-${i}-${j}" value="aleatoire" ${s.type==='aleatoire'?'checked':''} ${disabled} onchange="updateSous(${i}, ${j}, 'type', 'aleatoire')"> Aléatoire</label>
-                </div>
-                <div class="text-sm flex items-center gap-2">
-                  Priorité :
-                  <select onchange="changerPrioriteEtStyle(this, ${i}, ${j})" class="text-white text-xs px-2 py-1 rounded">
-                    <option value="haute" ${s.priorite==='haute'?'selected':''}>Haute</option>
-                    <option value="moyenne" ${s.priorite==='moyenne'?'selected':''}>Moyenne</option>
-                    <option value="basse" ${s.priorite==='basse'?'selected':''}>Basse</option>
-                  </select>
-                </div>
-                <div class="text-sm flex justify-between items-center">
-                  <span>Temps : ${s.temps || 0}s</span>
-                  <button onclick="toggleTimer(${i}, ${j}, this)" class="px-3 py-1 text-xs bg-blue-500 text-white rounded">Start</button>
+                <div class="flex gap-3 flex-wrap">
+                  <label><input type="radio" name="type-${s.id}" value="maitrisable" ${s.type==='maitrisable'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'type', 'maitrisable')"> Maîtrisable</label>
+                  <label><input type="radio" name="type-${s.id}" value="aleatoire" ${s.type==='aleatoire'?'checked':''} ${disabled} onchange="updateSous('${obj.id}', '${s.id}', 'type', 'aleatoire')"> Aléatoire</label>
                 </div>
               `;
               card.appendChild(sous);
               setTimeout(() => {
                 const select = sous.querySelector("select");
-                if (select) changerPrioriteEtStyle(select, i, j);
+                if (select) changerPrioriteEtStyle(select, obj.id, s.id);
               }, 0);
             });
 
             const sousInput = document.createElement('div');
             sousInput.className = 'flex gap-2';
             sousInput.innerHTML = `
-              <input id="sous-${i}" type="text" placeholder="Ajouter un sous-objectif..." class="flex-1 px-2 py-1 border rounded text-sm">
-              <button onclick="ajouterSousObjectif(${i}, document.getElementById('sous-${i}'))" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">Ajouter</button>
+              <input id="sous-${obj.id}" type="text" placeholder="Ajouter un sous-objectif..." class="flex-1 px-2 py-1 border rounded text-sm">
+              <button onclick="ajouterSousObjectif('${obj.id}', document.getElementById('sous-${obj.id}'))" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">Ajouter</button>
             `;
             card.appendChild(sousInput);
             liste.appendChild(card);
