@@ -7,7 +7,7 @@
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    html, body {
+   html, body {
       overscroll-behavior: none;
       -webkit-tap-highlight-color: transparent;
     }
@@ -19,8 +19,7 @@
         opacity: 1 !important;
       }
     }
-     /* Pour forcer le retour à la ligne sur petits écrans */
-     .responsive-sous {
+    .responsive-sous {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
@@ -32,6 +31,9 @@
       .responsive-sous > * {
         flex: 1;
       }
+    }
+    input[type="text"]:not(:focus) {
+      font-size: 16px;
     }
   </style>
 </head>
