@@ -19,6 +19,20 @@
         opacity: 1 !important;
       }
     }
+     /* Pour forcer le retour à la ligne sur petits écrans */
+     .responsive-sous {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .responsive-sous > * {
+      flex: 1 1 100%;
+    }
+    @media (min-width: 640px) {
+      .responsive-sous > * {
+        flex: 1;
+      }
+    }
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -308,9 +322,11 @@
           const sousInput = document.createElement('div');
           sousInput.className = 'flex gap-2';
           sousInput.innerHTML = `
-            <input id="sous-${obj.id}" type="text" placeholder="Ajouter un sous-objectif..." class="flex-1 px-2 py-1 border rounded text-sm">
-            <button onclick="ajouterSousObjectif('${obj.id}', document.getElementById('sous-${obj.id}'))" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">Ajouter</button>
-          `;
+    <div class="w-full flex flex-col sm:flex-row gap-2">
+      <input id="sous-${obj.id}" type="text" placeholder="Ajouter un sous-objectif..." class="flex-1 px-2 py-1 border rounded text-sm">
+      <button onclick="ajouterSousObjectif('${obj.id}', document.getElementById('sous-${obj.id}'))" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">Ajouter</button>
+    </div>
+  `;
           card.appendChild(sousInput);
 
           liste.appendChild(card);
