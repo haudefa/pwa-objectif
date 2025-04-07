@@ -1,4 +1,4 @@
-// app.js - version frontend Supabase compacte pour mobile avec tri/filtrage, suppression et archivage
+// app.js - version frontend Supabase compacte avec affichage titre, tri/filtrage, suppression et archivage
 
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
@@ -170,7 +170,10 @@ function chargerObjectifs() {
         card.className = 'border p-4 rounded-xl bg-zinc-900 text-white shadow space-y-4 text-sm';
         card.innerHTML = `
           <div class="flex justify-between items-center">
-            <p class="text-sm">Catégorie : ${obj.categorie}</p>
+            <div>
+              <h2 class="text-lg font-bold">${obj.titre}</h2>
+              <p class="text-sm text-gray-400">Catégorie : ${obj.categorie}</p>
+            </div>
             <div class="space-x-1">
               <button onclick="archiverObjectif('${obj.id}')" class="text-gray-400">📥</button>
               <button onclick="supprimerObjectif('${obj.id}')" class="text-red-500">🗑</button>
@@ -188,6 +191,7 @@ function chargerObjectifs() {
           </div>
         `;
 
+        // Sous-objectifs
         obj.sous_objectifs
           .filter(s => (afficherArchives || !s.archived))
           .filter(s => (filtrePriorite === "toutes" || s.priorite === filtrePriorite))
@@ -233,16 +237,16 @@ function chargerObjectifs() {
         const sousInput = document.createElement('div');
         sousInput.className = 'mt-2 flex gap-2';
         sousInput.innerHTML = `
-          <input id="sous-${obj.id}" type="text" placeholder="Ajouter un sous-objectif..." class="flex-1 px-2 py-1 border rounded text-xs">
+          <input id="sous-${obj.id}" type="text" placeholder="Ajouter un sous-objectif..." class="flex-1 px-2 py-1 border rounded bg-zinc-800 text-white placeholder-gray-400 text-xs">
           <button onclick="ajouterSousObjectif('${obj.id}', document.getElementById('sous-${obj.id}'))" class="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600">Ajouter</button>
         `;
-
         card.appendChild(sousInput);
         liste.appendChild(card);
       });
   });
 }
 
+// Export vers HTML
 window.signup = signup;
 window.login = login;
 window.logout = logout;
