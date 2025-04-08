@@ -1,3 +1,4 @@
+
 // app.js - version frontend Supabase compacte avec affichage titre, tri/filtrage, suppression et archivage
 
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
@@ -191,7 +192,6 @@ function chargerObjectifs() {
           </div>
         `;
 
-        // Sous-objectifs
         obj.sous_objectifs
           .filter(s => (afficherArchives || !s.archived))
           .filter(s => (filtrePriorite === "toutes" || s.priorite === filtrePriorite))
@@ -246,7 +246,6 @@ function chargerObjectifs() {
   });
 }
 
-// Export vers HTML
 window.signup = signup;
 window.login = login;
 window.logout = logout;
