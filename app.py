@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, render_template
 from flask_cors import CORS
 import os
 from supabase import create_client, Client
@@ -12,9 +12,9 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 app = Flask(__name__, static_folder='static')
 CORS(app)
 
-@app.route('/')
-def index():
-    return send_from_directory('static', 'index.html')
+@app.route("/")
+def home():
+    return render_template("index.html")
 
 @app.route('/favicon.ico')
 def favicon():
@@ -49,9 +49,6 @@ def login():
     except Exception as e:
         print("Erreur lors de la connexion :", e)
         return jsonify(success=False, error=str(e)), 400
-
-# Routes backend conservées uniquement pour servir les fichiers statiques et l'auth
-# Les opérations CRUD se font maintenant côté frontend avec Supabase SDK
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
