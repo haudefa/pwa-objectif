@@ -16,6 +16,15 @@ let filtrePriorite = "toutes";
 let filtreEtat = "tous";
 let afficherArchives = false;
 
+function escapeHtml(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 window.onload = async () => {
   const { data } = await supabase.auth.getSession();
   session = data.session;
@@ -37,6 +46,13 @@ window.onload = async () => {
     afficherArchives = e.target.checked;
     chargerObjectifs();
   };
+
+  document.getElementById('titre').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      ajouterObjectif();
+    }
+  });
 };
 
 function verifierConnexion() {
@@ -139,19 +155,23 @@ async function toggleTimer(sousId, btn) {
   if (timers[key]) {
     clearInterval(timers[key]);
     timers[key] = null;
-    btn.textContent = 'Start';
+    btn.textContent = 'Démarrer';
   } else {
     const startTime = Date.now();
     timers[key] = setInterval(() => {
       const temps = Math.floor((Date.now() - startTime) / 1000);
       updateSous(sousId, 'temps', temps);
     }, 1000);
-    btn.textContent = 'Stop';
+    btn.textContent = 'Arrêter';
   }
 }
 
 function changerChampsSousObjectif(sousId, field, value) {
   updateSous(sousId, field, value);
+}
+
+function buildEmptyState(message) {
+  return `<p class="text-center text-gray-400 border border-dashed border-gray-700 rounded-xl p-6">${message}</p>`;
 }
 
 function chargerObjectifs() {
@@ -160,8 +180,24 @@ function chargerObjectifs() {
     const liste = document.getElementById('liste');
     liste.innerHTML = '';
 
-    data
-      .filter(obj => afficherArchives || !obj.archived)
+    const objectifs = (data || [])
+      .slice()
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+    if (!objectifs.length) {
+      liste.innerHTML = buildEmptyState('Aucun objectif pour le moment. Commence par en ajouter un 🚀');
+      return;
+    }
+
+    const objectifsVisibles = objectifs
+      .filter(obj => afficherArchives || !obj.archived);
+
+    if (!objectifsVisibles.length) {
+      liste.innerHTML = buildEmptyState('Aucun objectif visible avec le filtre actuel.');
+      return;
+    }
+
+    objectifsVisibles
       .forEach((obj) => {
         const total = obj.sous_objectifs.length;
         const done = obj.sous_objectifs.filter(s => s.accompli).length;
@@ -172,8 +208,8 @@ function chargerObjectifs() {
         card.innerHTML = `
           <div class="flex justify-between items-center">
             <div>
-              <h2 class="text-lg font-bold">${obj.titre}</h2>
-              <p class="text-sm text-gray-400">Catégorie : ${obj.categorie}</p>
+              <h2 class="text-lg font-bold">${escapeHtml(obj.titre)}</h2>
+              <p class="text-sm text-gray-400">Catégorie : ${escapeHtml(obj.categorie)}</p>
             </div>
             <div class="space-x-1">
               <button onclick="archiverObjectif('${obj.id}')" class="text-gray-400">📥</button>
@@ -201,7 +237,7 @@ function chargerObjectifs() {
             sous.className = 'bg-zinc-800 p-3 rounded-xl space-y-2 text-sm';
             sous.innerHTML = `
               <div class="flex justify-between items-center">
-                <span class="font-semibold">• ${s.texte}</span>
+                <span class="font-semibold">• ${escapeHtml(s.texte)}</span>
                 <div class="space-x-2">
                   <input id="check-${s.id}" type="checkbox" ${s.accompli ? 'checked' : ''} onchange="toggleSousObjectif('${s.id}')">
                   <button onclick="archiverSousObjectif('${s.id}')" class="text-gray-400">📥</button>
@@ -228,7 +264,7 @@ function chargerObjectifs() {
               </div>
               <div class="flex justify-between items-center">
                 <span>⏱ ${s.temps || 0}s</span>
-                <button onclick="toggleTimer('${s.id}', this)" class="px-3 py-1 bg-blue-500 text-white rounded">Start</button>
+                <button onclick="toggleTimer('${s.id}', this)" class="px-3 py-1 bg-blue-500 text-white rounded">Démarrer</button>
               </div>
             `;
             card.appendChild(sous);
