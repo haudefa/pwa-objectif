@@ -15,6 +15,8 @@ let user = null;
 let filtrePriorite = "toutes";
 let filtreEtat = "tous";
 let afficherArchives = false;
+let filtreRecherche = "";
+let triObjectifs = "recent";
 
 function escapeHtml(value = "") {
   return String(value)
@@ -44,6 +46,16 @@ window.onload = async () => {
 
   document.getElementById('filtre-archive').onchange = (e) => {
     afficherArchives = e.target.checked;
+    chargerObjectifs();
+  };
+
+  document.getElementById('filtre-recherche').oninput = (e) => {
+    filtreRecherche = e.target.value.trim().toLowerCase();
+    chargerObjectifs();
+  };
+
+  document.getElementById('tri-objectifs').onchange = (e) => {
+    triObjectifs = e.target.value;
     chargerObjectifs();
   };
 
@@ -174,6 +186,23 @@ function buildEmptyState(message) {
   return `<p class="text-center text-gray-400 border border-dashed border-gray-700 rounded-xl p-6">${message}</p>`;
 }
 
+function renderDashboard(objectifs) {
+  const dashboard = document.getElementById('dashboard');
+  const objectifsActifs = objectifs.filter((o) => !o.archived);
+  const sousObjectifs = objectifsActifs.flatMap((o) => o.sous_objectifs || []);
+  const totalSous = sousObjectifs.length;
+  const totalDone = sousObjectifs.filter((s) => s.accompli).length;
+  const totalTime = sousObjectifs.reduce((acc, s) => acc + (Number(s.temps) || 0), 0);
+  const progress = totalSous ? Math.round((totalDone / totalSous) * 100) : 0;
+
+  dashboard.innerHTML = `
+    <div class="bg-gray-800 rounded-lg p-3 text-center"><p class="text-xs text-gray-400">Objectifs</p><p class="text-xl font-bold">${objectifsActifs.length}</p></div>
+    <div class="bg-gray-800 rounded-lg p-3 text-center"><p class="text-xs text-gray-400">Sous-objectifs</p><p class="text-xl font-bold">${totalDone}/${totalSous}</p></div>
+    <div class="bg-gray-800 rounded-lg p-3 text-center"><p class="text-xs text-gray-400">Progression</p><p class="text-xl font-bold">${progress}%</p></div>
+    <div class="bg-gray-800 rounded-lg p-3 text-center"><p class="text-xs text-gray-400">Temps total</p><p class="text-xl font-bold">${totalTime}s</p></div>
+  `;
+}
+
 function chargerObjectifs() {
   supabase.from("objectifs").select("*, sous_objectifs(*)").then(({ data, error }) => {
     if (error) return console.error("Erreur récupération objectifs :", error);
@@ -184,13 +213,33 @@ function chargerObjectifs() {
       .slice()
       .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
+    renderDashboard(objectifs);
+
     if (!objectifs.length) {
       liste.innerHTML = buildEmptyState('Aucun objectif pour le moment. Commence par en ajouter un 🚀');
       return;
     }
 
     const objectifsVisibles = objectifs
-      .filter(obj => afficherArchives || !obj.archived);
+      .filter(obj => afficherArchives || !obj.archived)
+      .filter((obj) => {
+        const inTitre = obj.titre?.toLowerCase().includes(filtreRecherche);
+        const inSous = (obj.sous_objectifs || []).some((s) => s.texte?.toLowerCase().includes(filtreRecherche));
+        return !filtreRecherche || inTitre || inSous;
+      });
+
+    objectifsVisibles.sort((a, b) => {
+      if (triObjectifs === 'ancien') return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+      if (triObjectifs === 'progression') {
+        const getP = (o) => {
+          const total = o.sous_objectifs?.length || 0;
+          const done = (o.sous_objectifs || []).filter((s) => s.accompli).length;
+          return total ? done / total : 0;
+        };
+        return getP(b) - getP(a);
+      }
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
 
     if (!objectifsVisibles.length) {
       liste.innerHTML = buildEmptyState('Aucun objectif visible avec le filtre actuel.');
