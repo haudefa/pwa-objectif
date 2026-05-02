@@ -15,6 +15,17 @@ let user = null;
 let filtrePriorite = "toutes";
 let filtreEtat = "tous";
 let afficherArchives = false;
+let filtreRecherche = "";
+let triObjectifs = "recent";
+
+function escapeHtml(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 window.onload = async () => {
   const { data } = await supabase.auth.getSession();
@@ -37,6 +48,23 @@ window.onload = async () => {
     afficherArchives = e.target.checked;
     chargerObjectifs();
   };
+
+  document.getElementById('filtre-recherche').oninput = (e) => {
+    filtreRecherche = e.target.value.trim().toLowerCase();
+    chargerObjectifs();
+  };
+
+  document.getElementById('tri-objectifs').onchange = (e) => {
+    triObjectifs = e.target.value;
+    chargerObjectifs();
+  };
+
+  document.getElementById('titre').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      ajouterObjectif();
+    }
+  });
 };
 
 function verifierConnexion() {
@@ -139,19 +167,40 @@ async function toggleTimer(sousId, btn) {
   if (timers[key]) {
     clearInterval(timers[key]);
     timers[key] = null;
-    btn.textContent = 'Start';
+    btn.textContent = 'Démarrer';
   } else {
     const startTime = Date.now();
     timers[key] = setInterval(() => {
       const temps = Math.floor((Date.now() - startTime) / 1000);
       updateSous(sousId, 'temps', temps);
     }, 1000);
-    btn.textContent = 'Stop';
+    btn.textContent = 'Arrêter';
   }
 }
 
 function changerChampsSousObjectif(sousId, field, value) {
   updateSous(sousId, field, value);
+}
+
+function buildEmptyState(message) {
+  return `<p class="text-center text-gray-400 border border-dashed border-gray-700 rounded-xl p-6">${message}</p>`;
+}
+
+function renderDashboard(objectifs) {
+  const dashboard = document.getElementById('dashboard');
+  const objectifsActifs = objectifs.filter((o) => !o.archived);
+  const sousObjectifs = objectifsActifs.flatMap((o) => o.sous_objectifs || []);
+  const totalSous = sousObjectifs.length;
+  const totalDone = sousObjectifs.filter((s) => s.accompli).length;
+  const totalTime = sousObjectifs.reduce((acc, s) => acc + (Number(s.temps) || 0), 0);
+  const progress = totalSous ? Math.round((totalDone / totalSous) * 100) : 0;
+
+  dashboard.innerHTML = `
+    <div class="bg-gray-800 rounded-lg p-3 text-center"><p class="text-xs text-gray-400">Objectifs</p><p class="text-xl font-bold">${objectifsActifs.length}</p></div>
+    <div class="bg-gray-800 rounded-lg p-3 text-center"><p class="text-xs text-gray-400">Sous-objectifs</p><p class="text-xl font-bold">${totalDone}/${totalSous}</p></div>
+    <div class="bg-gray-800 rounded-lg p-3 text-center"><p class="text-xs text-gray-400">Progression</p><p class="text-xl font-bold">${progress}%</p></div>
+    <div class="bg-gray-800 rounded-lg p-3 text-center"><p class="text-xs text-gray-400">Temps total</p><p class="text-xl font-bold">${totalTime}s</p></div>
+  `;
 }
 
 function chargerObjectifs() {
@@ -160,8 +209,44 @@ function chargerObjectifs() {
     const liste = document.getElementById('liste');
     liste.innerHTML = '';
 
-    data
+    const objectifs = (data || [])
+      .slice()
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+    renderDashboard(objectifs);
+
+    if (!objectifs.length) {
+      liste.innerHTML = buildEmptyState('Aucun objectif pour le moment. Commence par en ajouter un 🚀');
+      return;
+    }
+
+    const objectifsVisibles = objectifs
       .filter(obj => afficherArchives || !obj.archived)
+      .filter((obj) => {
+        const inTitre = obj.titre?.toLowerCase().includes(filtreRecherche);
+        const inSous = (obj.sous_objectifs || []).some((s) => s.texte?.toLowerCase().includes(filtreRecherche));
+        return !filtreRecherche || inTitre || inSous;
+      });
+
+    objectifsVisibles.sort((a, b) => {
+      if (triObjectifs === 'ancien') return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+      if (triObjectifs === 'progression') {
+        const getP = (o) => {
+          const total = o.sous_objectifs?.length || 0;
+          const done = (o.sous_objectifs || []).filter((s) => s.accompli).length;
+          return total ? done / total : 0;
+        };
+        return getP(b) - getP(a);
+      }
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
+
+    if (!objectifsVisibles.length) {
+      liste.innerHTML = buildEmptyState('Aucun objectif visible avec le filtre actuel.');
+      return;
+    }
+
+    objectifsVisibles
       .forEach((obj) => {
         const total = obj.sous_objectifs.length;
         const done = obj.sous_objectifs.filter(s => s.accompli).length;
@@ -172,8 +257,8 @@ function chargerObjectifs() {
         card.innerHTML = `
           <div class="flex justify-between items-center">
             <div>
-              <h2 class="text-lg font-bold">${obj.titre}</h2>
-              <p class="text-sm text-gray-400">Catégorie : ${obj.categorie}</p>
+              <h2 class="text-lg font-bold">${escapeHtml(obj.titre)}</h2>
+              <p class="text-sm text-gray-400">Catégorie : ${escapeHtml(obj.categorie)}</p>
             </div>
             <div class="space-x-1">
               <button onclick="archiverObjectif('${obj.id}')" class="text-gray-400">📥</button>
@@ -201,7 +286,7 @@ function chargerObjectifs() {
             sous.className = 'bg-zinc-800 p-3 rounded-xl space-y-2 text-sm';
             sous.innerHTML = `
               <div class="flex justify-between items-center">
-                <span class="font-semibold">• ${s.texte}</span>
+                <span class="font-semibold">• ${escapeHtml(s.texte)}</span>
                 <div class="space-x-2">
                   <input id="check-${s.id}" type="checkbox" ${s.accompli ? 'checked' : ''} onchange="toggleSousObjectif('${s.id}')">
                   <button onclick="archiverSousObjectif('${s.id}')" class="text-gray-400">📥</button>
@@ -228,7 +313,7 @@ function chargerObjectifs() {
               </div>
               <div class="flex justify-between items-center">
                 <span>⏱ ${s.temps || 0}s</span>
-                <button onclick="toggleTimer('${s.id}', this)" class="px-3 py-1 bg-blue-500 text-white rounded">Start</button>
+                <button onclick="toggleTimer('${s.id}', this)" class="px-3 py-1 bg-blue-500 text-white rounded">Démarrer</button>
               </div>
             `;
             card.appendChild(sous);
