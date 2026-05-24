@@ -1,8 +1,6 @@
-const CACHE_NAME = 'objectif-cache-v1';
+const CACHE_NAME = 'objectif-cache-v3';
 const FILES_TO_CACHE = [
-  '/',
   '/static/app.js',
-  '/static/supabase.js',
   '/static/manifest.json',
   '/static/icons/favicon.ico',
   '/static/icons/web-app-manifest-192x192.png',
@@ -37,6 +35,11 @@ self.addEventListener('activate', event => {
 
 // Interception des requêtes
 self.addEventListener('fetch', event => {
+  if (event.request.mode === 'navigate') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => response || fetch(event.request))

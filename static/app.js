@@ -1,6 +1,5 @@
-import { supabase } from "./supabase.js";
-
 const timers = {};
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
 
 let filtrePriorite = "toutes";
 let filtreEtat = "tous";
@@ -15,6 +14,40 @@ function escapeHtml(value = "") {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+async function apiRequest(path, options = {}) {
+  const headers = {
+    Accept: "application/json",
+    ...(options.headers || {}),
+  };
+
+  if (options.body && typeof options.body !== "string") {
+    headers["Content-Type"] = "application/json";
+    options.body = JSON.stringify(options.body);
+  }
+
+  if ((options.method || "GET") !== "GET") {
+    headers["X-CSRF-Token"] = csrfToken;
+  }
+
+  const response = await fetch(path, {
+    credentials: "same-origin",
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || "Erreur serveur.");
+  }
+
+  if (response.status === 204) return null;
+  if (!response.headers.get("content-type")?.includes("application/json")) {
+    throw new Error("Session expirée.");
+  }
+
+  return response.json();
 }
 
 window.onload = () => {
@@ -61,15 +94,15 @@ async function ajouterObjectif() {
     return;
   }
 
-  const { error } = await supabase.from("objectifs").insert([
-    {
+  try {
+    await apiRequest("/api/objectifs", {
+      method: "POST",
+      body: {
       titre,
       categorie,
-      archived: false,
-    },
-  ]);
-
-  if (error) {
+      },
+    });
+  } catch (error) {
     alert("Erreur ajout objectif : " + error.message);
     return;
   }
@@ -88,20 +121,14 @@ async function ajouterSousObjectif(objectifId, input) {
     return;
   }
 
-  const { error } = await supabase.from("sous_objectifs").insert([
-    {
-      objectif_id: objectifId,
+  try {
+    await apiRequest(`/api/objectifs/${objectifId}/sous-objectifs`, {
+      method: "POST",
+      body: {
       texte,
-      accompli: false,
-      temps: 0,
-      etat: "en attente",
-      type: "maîtrisable",
-      priorite: "moyenne",
-      archived: false,
-    },
-  ]);
-
-  if (error) {
+      },
+    });
+  } catch (error) {
     alert("Erreur ajout sous-objectif : " + error.message);
     return;
   }
@@ -111,12 +138,14 @@ async function ajouterSousObjectif(objectifId, input) {
 }
 
 async function updateSous(sousId, field, value) {
-  const { error } = await supabase
-    .from("sous_objectifs")
-    .update({ [field]: value })
-    .eq("id", sousId);
-
-  if (error) console.error("Erreur mise à jour sous-objectif :", error);
+  try {
+    await apiRequest(`/api/sous-objectifs/${sousId}`, {
+      method: "PATCH",
+      body: { [field]: value },
+    });
+  } catch (error) {
+    console.error("Erreur mise à jour sous-objectif :", error);
+  }
 }
 
 async function supprimerObjectif(id) {
@@ -124,10 +153,12 @@ async function supprimerObjectif(id) {
 
   if (!confirmation) return;
 
-  const { error } = await supabase.from("objectifs").delete().eq("id", id);
-
-  if (error) alert("Erreur suppression objectif : " + error.message);
-  else chargerObjectifs();
+  try {
+    await apiRequest(`/api/objectifs/${id}`, { method: "DELETE" });
+    chargerObjectifs();
+  } catch (error) {
+    alert("Erreur suppression objectif : " + error.message);
+  }
 }
 
 async function supprimerSousObjectif(sousId) {
@@ -135,33 +166,36 @@ async function supprimerSousObjectif(sousId) {
 
   if (!confirmation) return;
 
-  const { error } = await supabase
-    .from("sous_objectifs")
-    .delete()
-    .eq("id", sousId);
-
-  if (error) alert("Erreur suppression sous-objectif : " + error.message);
-  else chargerObjectifs();
+  try {
+    await apiRequest(`/api/sous-objectifs/${sousId}`, { method: "DELETE" });
+    chargerObjectifs();
+  } catch (error) {
+    alert("Erreur suppression sous-objectif : " + error.message);
+  }
 }
 
 async function archiverObjectif(id) {
-  const { error } = await supabase
-    .from("objectifs")
-    .update({ archived: true })
-    .eq("id", id);
-
-  if (error) alert("Erreur archivage : " + error.message);
-  else chargerObjectifs();
+  try {
+    await apiRequest(`/api/objectifs/${id}`, {
+      method: "PATCH",
+      body: { archived: true },
+    });
+    chargerObjectifs();
+  } catch (error) {
+    alert("Erreur archivage : " + error.message);
+  }
 }
 
 async function archiverSousObjectif(id) {
-  const { error } = await supabase
-    .from("sous_objectifs")
-    .update({ archived: true })
-    .eq("id", id);
-
-  if (error) alert("Erreur archivage sous-objectif : " + error.message);
-  else chargerObjectifs();
+  try {
+    await apiRequest(`/api/sous-objectifs/${id}`, {
+      method: "PATCH",
+      body: { archived: true },
+    });
+    chargerObjectifs();
+  } catch (error) {
+    alert("Erreur archivage sous-objectif : " + error.message);
+  }
 }
 
 async function toggleSousObjectif(sousId) {
@@ -268,15 +302,9 @@ function renderDashboard(objectifs) {
   `;
 }
 
-function chargerObjectifs() {
-  supabase
-    .from("objectifs")
-    .select("*, sous_objectifs(*)")
-    .then(({ data, error }) => {
-      if (error) {
-        console.error("Erreur récupération objectifs :", error);
-        return;
-      }
+async function chargerObjectifs() {
+  try {
+      const data = await apiRequest("/api/objectifs");
 
       const liste = document.getElementById("liste");
       liste.innerHTML = "";
@@ -491,7 +519,11 @@ function chargerObjectifs() {
         card.appendChild(sousInput);
         liste.appendChild(card);
       });
-    });
+  } catch (error) {
+    console.error("Erreur récupération objectifs :", error);
+    const liste = document.getElementById("liste");
+    liste.innerHTML = buildEmptyState("Impossible de charger les objectifs.");
+  }
 }
 
 window.ajouterObjectif = ajouterObjectif;
