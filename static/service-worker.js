@@ -1,16 +1,21 @@
 const CACHE_NAME = 'objectif-cache-v1';
 const FILES_TO_CACHE = [
   '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192.png'
+  '/static/app.js',
+  '/static/supabase.js',
+  '/static/manifest.json',
+  '/static/icons/favicon.ico',
+  '/static/icons/web-app-manifest-192x192.png',
+  '/static/icons/web-app-manifest-512x512.png'
 ];
 
 // Installation : mettre en cache les fichiers
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(FILES_TO_CACHE);
+      return cache.addAll(FILES_TO_CACHE).catch(error => {
+        console.error('Erreur cache service worker :', error);
+      });
     })
   );
   self.skipWaiting();

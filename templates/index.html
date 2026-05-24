@@ -4,65 +4,80 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mes Objectifs</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='icons/favicon.ico') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}" />
+  <meta name="theme-color" content="#0f172a" />
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 text-white min-h-screen p-4">
-  <!-- Authentification -->
-  <div id="auth" class="max-w-md mx-auto bg-gray-800 p-6 rounded-xl shadow-md space-y-4">
-    <h2 class="text-2xl font-bold text-center text-white">Connexion / Inscription</h2>
-    <input id="email" type="email" placeholder="Email" class="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 placeholder-gray-400" />
-    <input id="password" type="password" placeholder="Mot de passe" class="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 placeholder-gray-400" />
-    <div class="flex flex-col sm:flex-row gap-2">
-      <button onclick="signup()" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">Inscription</button>
-      <button onclick="login()" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Connexion</button>
-    </div>
-  </div>
+<body class="min-h-screen bg-neutral-950 text-neutral-100 antialiased">
+  <main class="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+    <section id="objectifs" class="w-full">
+      <header class="mb-5 flex flex-col gap-4 border-b border-neutral-800 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p class="text-xs font-medium uppercase tracking-[0.22em] text-emerald-300">Tableau de bord</p>
+          <h1 class="mt-2 text-3xl font-semibold text-white sm:text-4xl">Mes objectifs</h1>
+        </div>
 
-  <div id="logout" class="text-center my-4 hidden">
-    <button onclick="logout()" class="text-blue-400 underline text-sm">Déconnexion</button>
-  </div>
+        <form method="POST" action="/logout">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <button class="border border-neutral-700 px-3 py-2 text-sm font-medium text-neutral-300 transition hover:border-red-300 hover:text-red-200">Déconnexion</button>
+        </form>
+      </header>
 
-  <!-- Objectifs -->
-  <div id="objectifs" class="max-w-2xl mx-auto hidden">
-    <h1 class="text-3xl font-bold text-center text-white mb-6">🎯 Mes Objectifs</h1>
+      <div id="dashboard" class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4"></div>
 
-    <!-- Ajout objectif -->
-    <div class="flex flex-col sm:flex-row gap-2 mb-6">
-      <input id="titre" type="text" placeholder="Nom de l’objectif..." class="flex-1 p-3 rounded bg-gray-800 text-white border border-gray-700 placeholder-gray-400" />
-      <select id="categorie" class="p-3 rounded bg-gray-800 text-white border border-gray-700">
-        <option value="Travail">Travail</option>
-        <option value="Physique">Physique</option>
-        <option value="Apprentissage">Apprentissage</option>
-        <option value="Spirituelle">Spirituelle</option>
-      </select>
-      <button onclick="ajouterObjectif()" class="bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600">Ajouter</button>
-    </div>
+      <!-- Ajout objectif -->
+      <div class="mb-4 grid gap-2 border border-neutral-800 bg-neutral-900 p-3 sm:grid-cols-[minmax(0,1fr)_180px_auto]">
+        <input id="titre" type="text" placeholder="Nouvel objectif" class="min-w-0 border border-neutral-700 bg-neutral-950 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-neutral-500 focus:border-emerald-400" />
+        <select id="categorie" class="border border-neutral-700 bg-neutral-950 px-3 py-2.5 text-sm text-white outline-none transition focus:border-emerald-400">
+          <option value="Travail">Travail</option>
+          <option value="Physique">Physique</option>
+          <option value="Apprentissage">Apprentissage</option>
+          <option value="Spirituelle">Spirituelle</option>
+        </select>
+        <button onclick="ajouterObjectif()" class="bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-300">Ajouter</button>
+      </div>
 
-    <!-- Filtres -->
-    <div class="flex flex-wrap gap-4 items-center justify-between text-sm mb-4">
-      <select id="filtre-priorite" class="p-2 rounded bg-gray-800 text-white border border-gray-700">
-        <option value="toutes">Toutes priorités</option>
-        <option value="haute">Haute</option>
-        <option value="moyenne">Moyenne</option>
-        <option value="basse">Basse</option>
-      </select>
-      <select id="filtre-etat" class="p-2 rounded bg-gray-800 text-white border border-gray-700">
-        <option value="tous">Tous états</option>
-        <option value="accompli">Accompli</option>
-        <option value="bloqué">Bloqué</option>
-        <option value="en attente">En attente</option>
-      </select>
-      <label class="flex items-center gap-2 text-white">
-        <input id="filtre-archive" type="checkbox" class="accent-blue-500" />
-        <span>Voir les archives</span>
-      </label>
-    </div>
+      <!-- Filtres -->
+      <div class="mb-5 grid gap-2 text-sm md:grid-cols-[minmax(0,1fr)_160px_160px_160px_auto]">
+        <input id="filtre-recherche" type="search" placeholder="Rechercher" class="min-w-0 border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-white outline-none transition placeholder:text-neutral-500 focus:border-emerald-400" />
+        <select id="filtre-priorite" class="border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-white outline-none transition focus:border-emerald-400">
+          <option value="toutes">Toutes priorités</option>
+          <option value="haute">Haute</option>
+          <option value="moyenne">Moyenne</option>
+          <option value="basse">Basse</option>
+        </select>
+        <select id="filtre-etat" class="border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-white outline-none transition focus:border-emerald-400">
+          <option value="tous">Tous états</option>
+          <option value="accompli">Accompli</option>
+          <option value="bloqué">Bloqué</option>
+          <option value="en attente">En attente</option>
+        </select>
+        <select id="tri-objectifs" class="border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-white outline-none transition focus:border-emerald-400">
+          <option value="recent">Plus récents</option>
+          <option value="ancien">Plus anciens</option>
+          <option value="progression">Progression</option>
+        </select>
+        <label class="flex items-center justify-between gap-3 border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-neutral-300 md:justify-center">
+          <span>Archives</span>
+          <input id="filtre-archive" type="checkbox" class="h-4 w-4 accent-emerald-400" />
+        </label>
+      </div>
 
-    <!-- Liste des objectifs -->
-    <div id="liste" class="space-y-6"></div>
-  </div>
+      <!-- Liste des objectifs -->
+      <div id="liste" class="space-y-4"></div>
+    </section>
+  </main>
 
   <script type="module" src="{{ url_for('static', filename='app.js') }}"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/service-worker.js");
+      });
+    }
+  </script>
 
 </body>
 </html>

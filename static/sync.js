@@ -1,20 +1,3 @@
-import { getUnsyncedObjectifs, markAsSynced } from './db.js';
-import { supabase } from './supabase.js';
-
-export async function syncToSupabase() {
-  const unsynced = await getUnsyncedObjectifs();
-  if (unsynced.length === 0) return;
-
-  for (const objectif of unsynced) {
-    const { error } = await supabase.from('objectifs').insert([objectif]);
-    if (!error) {
-      await markAsSynced(objectif.id);
-      console.log(`🔄 Objectif synchronisé : ${objectif.titre}`);
-    } else {
-      console.error('❌ Erreur de synchro :', error);
-    }
-  }
-}
 // sync.js
 import { getUnsyncedObjectifs, markAsSynced, getUnsyncedSousObjectifs, markSousObjectifAsSynced } from './db.js';
 import { supabase } from './supabase.js';
