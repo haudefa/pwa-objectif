@@ -1,4 +1,6 @@
-from flask import Flask, abort, flash, jsonify, redirect, render_template, request, send_from_directory, session, url_for
+from flask import Flask, abort, flash, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for
+from io import BytesIO
+import json
 import os
 import secrets
 from supabase import create_client, Client
@@ -146,6 +148,29 @@ def api_lister_objectifs():
 @app.get("/api/progression")
 def api_lister_progression():
     return jsonify(storage.list_progression())
+
+
+@app.get("/api/export")
+def api_exporter_donnees():
+    payload = json.dumps(storage.export_data(), ensure_ascii=False, indent=2).encode("utf-8")
+    return send_file(
+        BytesIO(payload),
+        mimetype="application/json",
+        as_attachment=True,
+        download_name="pwa-objectif-export.json",
+    )
+
+
+@app.post("/api/import")
+def api_importer_donnees():
+    data = donnees_json()
+
+    try:
+        objectifs = storage.import_data(data)
+    except ValueError as erreur:
+        return erreur_api(str(erreur))
+
+    return jsonify(objectifs)
 
 
 @app.post("/api/objectifs")

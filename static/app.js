@@ -55,6 +55,8 @@ window.onload = () => {
   const dateDebut = document.getElementById("date-debut");
   if (dateDebut) dateDebut.value = new Date().toISOString().slice(0, 10);
 
+  document.getElementById("import-data")?.addEventListener("change", importerDonnees);
+
   chargerObjectifs();
   window.addEventListener("resize", () => {
     dessinerGraphiqueProgression(derniereProgressionSeries);
@@ -92,6 +94,58 @@ window.onload = () => {
   });
 };
 
+function showToast(message, type = "info") {
+  const root = document.getElementById("toast-root");
+  if (!root) return;
+
+  const tone = {
+    success: "border-emerald-300/50 bg-emerald-300/10 text-emerald-100",
+    error: "border-red-400/50 bg-red-400/10 text-red-100",
+    warning: "border-amber-300/50 bg-amber-300/10 text-amber-100",
+    info: "border-neutral-700 bg-neutral-900 text-neutral-100",
+  }[type] || "border-neutral-700 bg-neutral-900 text-neutral-100";
+
+  const toast = document.createElement("div");
+  toast.className = `border px-3 py-2 text-sm shadow-xl shadow-black/30 ${tone}`;
+  toast.textContent = message;
+  root.appendChild(toast);
+
+  setTimeout(() => {
+    toast.remove();
+  }, 3600);
+}
+
+function demanderConfirmation(message) {
+  const modal = document.getElementById("confirm-modal");
+  const messageNode = document.getElementById("confirm-message");
+  const cancel = document.getElementById("confirm-cancel");
+  const ok = document.getElementById("confirm-ok");
+
+  if (!modal || !messageNode || !cancel || !ok) {
+    return Promise.resolve(window.confirm(message));
+  }
+
+  messageNode.textContent = message;
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+
+  return new Promise((resolve) => {
+    const close = (result) => {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+      cancel.removeEventListener("click", onCancel);
+      ok.removeEventListener("click", onOk);
+      resolve(result);
+    };
+
+    const onCancel = () => close(false);
+    const onOk = () => close(true);
+
+    cancel.addEventListener("click", onCancel);
+    ok.addEventListener("click", onOk);
+  });
+}
+
 async function ajouterObjectif() {
   const titre = document.getElementById("titre").value.trim();
   const categorie = document.getElementById("categorie").value.trim();
@@ -99,12 +153,12 @@ async function ajouterObjectif() {
   const endDate = document.getElementById("date-fin").value;
 
   if (!titre) {
-    alert("Le titre est obligatoire.");
+    showToast("Le titre est obligatoire.", "warning");
     return;
   }
 
   if (endDate && startDate && startDate > endDate) {
-    alert("La date de fin doit être après la date de début.");
+    showToast("La date de fin doit être après la date de début.", "warning");
     return;
   }
 
@@ -119,7 +173,7 @@ async function ajouterObjectif() {
       },
     });
   } catch (error) {
-    alert("Erreur ajout objectif : " + error.message);
+    showToast("Erreur ajout objectif : " + error.message, "error");
     return;
   }
 
@@ -128,6 +182,7 @@ async function ajouterObjectif() {
   document.getElementById("date-debut").value = new Date().toISOString().slice(0, 10);
   document.getElementById("date-fin").value = "";
 
+  showToast("Objectif ajouté.", "success");
   chargerObjectifs();
 }
 
@@ -135,7 +190,7 @@ async function ajouterSousObjectif(objectifId, input) {
   const texte = input.value.trim();
 
   if (!texte) {
-    alert("Le sous-objectif est obligatoire.");
+    showToast("Le sous-objectif est obligatoire.", "warning");
     return;
   }
 
@@ -147,11 +202,12 @@ async function ajouterSousObjectif(objectifId, input) {
       },
     });
   } catch (error) {
-    alert("Erreur ajout sous-objectif : " + error.message);
+    showToast("Erreur ajout sous-objectif : " + error.message, "error");
     return;
   }
 
   input.value = "";
+  showToast("Sous-objectif ajouté.", "success");
   chargerObjectifs();
 }
 
@@ -163,32 +219,35 @@ async function updateSous(sousId, field, value) {
     });
   } catch (error) {
     console.error("Erreur mise à jour sous-objectif :", error);
+    showToast("Erreur mise à jour : " + error.message, "error");
   }
 }
 
 async function supprimerObjectif(id) {
-  const confirmation = confirm("Supprimer cet objectif ?");
+  const confirmation = await demanderConfirmation("Supprimer cet objectif ?");
 
   if (!confirmation) return;
 
   try {
     await apiRequest(`/api/objectifs/${id}`, { method: "DELETE" });
+    showToast("Objectif supprimé.", "success");
     chargerObjectifs();
   } catch (error) {
-    alert("Erreur suppression objectif : " + error.message);
+    showToast("Erreur suppression objectif : " + error.message, "error");
   }
 }
 
 async function supprimerSousObjectif(sousId) {
-  const confirmation = confirm("Supprimer ce sous-objectif ?");
+  const confirmation = await demanderConfirmation("Supprimer ce sous-objectif ?");
 
   if (!confirmation) return;
 
   try {
     await apiRequest(`/api/sous-objectifs/${sousId}`, { method: "DELETE" });
+    showToast("Sous-objectif supprimé.", "success");
     chargerObjectifs();
   } catch (error) {
-    alert("Erreur suppression sous-objectif : " + error.message);
+    showToast("Erreur suppression sous-objectif : " + error.message, "error");
   }
 }
 
@@ -198,9 +257,10 @@ async function archiverObjectif(id) {
       method: "PATCH",
       body: { archived: true },
     });
+    showToast("Objectif archivé.", "success");
     chargerObjectifs();
   } catch (error) {
-    alert("Erreur archivage : " + error.message);
+    showToast("Erreur archivage : " + error.message, "error");
   }
 }
 
@@ -209,7 +269,7 @@ async function modifierDatesObjectif(id) {
   const endDate = document.getElementById(`date-fin-${id}`)?.value || "";
 
   if (startDate && endDate && startDate > endDate) {
-    alert("La date de fin doit être après la date de début.");
+    showToast("La date de fin doit être après la date de début.", "warning");
     return;
   }
 
@@ -221,9 +281,10 @@ async function modifierDatesObjectif(id) {
         end_date: endDate,
       },
     });
+    showToast("Dates mises à jour.", "success");
     chargerObjectifs();
   } catch (error) {
-    alert("Erreur mise à jour des dates : " + error.message);
+    showToast("Erreur mise à jour des dates : " + error.message, "error");
   }
 }
 
@@ -233,9 +294,35 @@ async function archiverSousObjectif(id) {
       method: "PATCH",
       body: { archived: true },
     });
+    showToast("Sous-objectif archivé.", "success");
     chargerObjectifs();
   } catch (error) {
-    alert("Erreur archivage sous-objectif : " + error.message);
+    showToast("Erreur archivage sous-objectif : " + error.message, "error");
+  }
+}
+
+function exporterDonnees() {
+  window.location.href = "/api/export";
+  showToast("Export lancé.", "info");
+}
+
+async function importerDonnees(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const payload = JSON.parse(text);
+    await apiRequest("/api/import", {
+      method: "POST",
+      body: payload,
+    });
+    showToast("Données importées.", "success");
+    chargerObjectifs();
+  } catch (error) {
+    showToast("Import impossible : " + error.message, "error");
+  } finally {
+    event.target.value = "";
   }
 }
 
@@ -254,6 +341,7 @@ async function toggleSousObjectif(sousId) {
 async function marquerSousObjectifAccompli(sousId) {
   stopTimer(sousId);
   await updateSous(sousId, "accompli", true);
+  showToast("Action marquée accomplie.", "success");
   chargerObjectifs();
 }
 
@@ -497,6 +585,54 @@ function renderTodayFocus(objectifs) {
   `).join("");
 }
 
+function renderArchives(objectifs) {
+  const container = document.getElementById("archives");
+  const count = document.getElementById("archives-count");
+
+  if (!container || !count) return;
+
+  const archives = objectifs
+    .filter((objectif) => objectif.archived || objectif.frozen)
+    .sort((a, b) => new Date(b.completed_at || b.created_at || 0) - new Date(a.completed_at || a.created_at || 0));
+
+  count.textContent = archives.length ? `${archives.length} objectif${archives.length > 1 ? "s" : ""}` : "";
+
+  if (!archives.length) {
+    container.innerHTML = `
+      <p class="border border-dashed border-neutral-700 bg-neutral-950 px-3 py-4 text-sm text-neutral-400">
+        Aucun objectif archivé.
+      </p>
+    `;
+    return;
+  }
+
+  container.innerHTML = archives.map((objectif) => {
+    const sousObjectifs = objectif.sous_objectifs || [];
+    const total = sousObjectifs.length;
+    const done = sousObjectifs.filter(isSousObjectifAccompli).length;
+    const percent = total ? Math.round((done / total) * 100) : 0;
+    const deadline = getDeadlineInfo(objectif, percent);
+    const completed = objectif.completed_at ? formatDateLongue(objectif.completed_at) : "Non définie";
+
+    return `
+      <div class="grid gap-2 border border-neutral-800 bg-neutral-950 p-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <div class="min-w-0">
+          <div class="mb-1 flex flex-wrap items-center gap-2">
+            <span class="border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-300">Archive</span>
+            <span class="border px-2 py-1 text-xs font-medium ${deadline.tone}">${deadline.label}</span>
+            <span class="text-xs text-neutral-500">${percent}%</span>
+          </div>
+          <p class="break-words font-medium text-white">${escapeHtml(objectif.titre)}</p>
+          <p class="mt-1 text-xs text-neutral-500">Terminé : ${escapeHtml(completed)} · ${done}/${total} tâches</p>
+        </div>
+        <button onclick="supprimerObjectif('${objectif.id}')" class="border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-300 transition hover:border-red-300 hover:text-red-200">
+          Supprimer
+        </button>
+      </div>
+    `;
+  }).join("");
+}
+
 function getPriorityClass(priority) {
   if (priority === "haute") return "border-red-400/40 bg-red-400/10 text-red-200";
   if (priority === "basse") return "border-neutral-600 bg-neutral-800 text-neutral-300";
@@ -723,6 +859,7 @@ async function chargerObjectifs() {
 
       renderDashboard(objectifs);
       renderTodayFocus(objectifs);
+      renderArchives(objectifs);
       chargerProgression();
 
       if (!objectifs.length) {
@@ -968,6 +1105,8 @@ window.supprimerSousObjectif = supprimerSousObjectif;
 window.archiverObjectif = archiverObjectif;
 window.modifierDatesObjectif = modifierDatesObjectif;
 window.archiverSousObjectif = archiverSousObjectif;
+window.exporterDonnees = exporterDonnees;
+window.importerDonnees = importerDonnees;
 window.toggleSousObjectif = toggleSousObjectif;
 window.marquerSousObjectifAccompli = marquerSousObjectifAccompli;
 window.toggleTimer = toggleTimer;

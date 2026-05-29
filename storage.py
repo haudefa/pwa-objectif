@@ -1,6 +1,7 @@
 import copy
 import json
 import os
+import shutil
 import uuid
 
 from models import (
@@ -20,8 +21,16 @@ class LocalObjectifStorage:
         if not os.path.exists(self.path):
             return {"version": 1, "objectifs": []}
 
-        with open(self.path, "r", encoding="utf-8") as fichier:
-            donnees = json.load(fichier)
+        try:
+            with open(self.path, "r", encoding="utf-8") as fichier:
+                donnees = json.load(fichier)
+        except json.JSONDecodeError:
+            backup_path = f"{self.path}.bak"
+            if os.path.exists(backup_path):
+                with open(backup_path, "r", encoding="utf-8") as fichier:
+                    return json.load(fichier)
+
+            return {"version": 1, "objectifs": []}
 
         if isinstance(donnees, list):
             return {"version": 1, "objectifs": donnees}
@@ -34,8 +43,31 @@ class LocalObjectifStorage:
         return {"version": 1, "objectifs": []}
 
     def _write_raw(self, donnees):
+        if os.path.exists(self.path):
+            backup_path = f"{self.path}.bak"
+            shutil.copy2(self.path, backup_path)
+
         with open(self.path, "w", encoding="utf-8") as fichier:
             json.dump(donnees, fichier, ensure_ascii=False, indent=2)
+
+    def export_data(self):
+        donnees, objectifs = self._read_objectifs()
+        donnees["objectifs"] = objectifs
+        return copy.deepcopy(donnees)
+
+    def import_data(self, donnees):
+        if isinstance(donnees, list):
+            donnees = {"version": 1, "objectifs": donnees}
+
+        if not isinstance(donnees, dict) or not isinstance(donnees.get("objectifs"), list):
+            raise ValueError("Format d'import invalide.")
+
+        donnees.setdefault("version", 1)
+        for objectif in donnees["objectifs"]:
+            objectif_pour_api(objectif)
+
+        self._write_raw(donnees)
+        return self.list_objectifs()
 
     def _read_objectifs(self):
         donnees = self._read_raw()
