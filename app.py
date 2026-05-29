@@ -4,20 +4,31 @@ import secrets
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
+from models import date_locale_aujourdhui, normaliser_date
+from storage import LocalObjectifStorage
+
+
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+supabase: Client | None = None
 
-app = Flask(__name__, static_folder='static')
+if SUPABASE_URL and SUPABASE_ANON_KEY:
+    supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+app = Flask(__name__, static_folder="static")
 app.secret_key = os.environ.get("SECRET_KEY", "objectif-dev")
 app.config["AUTH_PASSWORD"] = os.environ.get("OBJECTIF_PASSWORD", "objectif123")
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["DATA_FILE"] = os.environ.get("OBJECTIF_DATA_FILE", os.path.join(app.root_path, "data.json"))
+
+storage = LocalObjectifStorage(app.config["DATA_FILE"])
 
 ETATS_SOUS_OBJECTIFS = {"en attente", "bloqué", "accompli"}
 TYPES_SOUS_OBJECTIFS = {"maîtrisable", "aléatoire"}
 PRIORITES_SOUS_OBJECTIFS = {"basse", "moyenne", "haute"}
+
 
 def generer_csrf_token():
     token = session.get("_csrf_token")
@@ -74,10 +85,24 @@ def erreur_api(message, statut=400):
 
 
 def executer_supabase(requete):
+    if not supabase:
+        return None
+
     try:
         return requete.execute()
     except Exception as erreur:
-        return erreur_api(str(erreur), 502)
+        app.logger.warning("Supabase indisponible, utilisation du stockage local: %s", erreur)
+        return None
+
+
+def dates_objectif_depuis_payload(data):
+    start_date = normaliser_date(data.get("start_date")) or date_locale_aujourdhui()
+    end_date = normaliser_date(data.get("end_date"))
+
+    if end_date and start_date > end_date:
+        return None, None, erreur_api("La date de fin doit être après la date de début.")
+
+    return start_date, end_date, None
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -112,10 +137,15 @@ def home():
 @app.get("/api/objectifs")
 def api_lister_objectifs():
     resultat = executer_supabase(supabase.table("objectifs").select("*, sous_objectifs(*)"))
-    if isinstance(resultat, tuple):
-        return resultat
+    if resultat is None:
+        return jsonify(storage.list_objectifs())
 
     return jsonify(resultat.data or [])
+
+
+@app.get("/api/progression")
+def api_lister_progression():
+    return jsonify(storage.list_progression())
 
 
 @app.post("/api/objectifs")
@@ -123,6 +153,10 @@ def api_creer_objectif():
     data = donnees_json()
     titre = data.get("titre", "").strip()
     categorie = data.get("categorie", "").strip()
+    start_date, end_date, erreur_dates = dates_objectif_depuis_payload(data)
+
+    if erreur_dates:
+        return erreur_dates
 
     if not titre:
         return erreur_api("Le titre est obligatoire.")
@@ -131,11 +165,13 @@ def api_creer_objectif():
         supabase.table("objectifs").insert({
             "titre": titre,
             "categorie": categorie,
-            "archived": False
+            "archived": False,
+            "start_date": start_date,
+            "end_date": end_date,
         })
     )
-    if isinstance(resultat, tuple):
-        return resultat
+    if resultat is None:
+        return jsonify(storage.create_objectif(titre, categorie, start_date, end_date)), 201
 
     return jsonify(resultat.data[0] if resultat.data else {}), 201
 
@@ -148,12 +184,22 @@ def api_modifier_objectif(objectif_id):
     if "archived" in data:
         updates["archived"] = bool(data["archived"])
 
+    if "start_date" in data:
+        updates["start_date"] = normaliser_date(data.get("start_date")) or date_locale_aujourdhui()
+
+    if "end_date" in data:
+        updates["end_date"] = normaliser_date(data.get("end_date"))
+
+    if updates.get("end_date") and updates.get("start_date") and updates["start_date"] > updates["end_date"]:
+        return erreur_api("La date de fin doit être après la date de début.")
+
     if not updates:
         return erreur_api("Aucune donnée valide à modifier.")
 
     resultat = executer_supabase(supabase.table("objectifs").update(updates).eq("id", objectif_id))
-    if isinstance(resultat, tuple):
-        return resultat
+    if resultat is None:
+        objectif = storage.update_objectif(objectif_id, updates)
+        return jsonify(objectif or {})
 
     return jsonify(resultat.data[0] if resultat.data else {})
 
@@ -161,8 +207,9 @@ def api_modifier_objectif(objectif_id):
 @app.delete("/api/objectifs/<objectif_id>")
 def api_supprimer_objectif(objectif_id):
     resultat = executer_supabase(supabase.table("objectifs").delete().eq("id", objectif_id))
-    if isinstance(resultat, tuple):
-        return resultat
+    if resultat is None:
+        storage.delete_objectif(objectif_id)
+        return "", 204
 
     return "", 204
 
@@ -184,11 +231,15 @@ def api_creer_sous_objectif(objectif_id):
             "etat": "en attente",
             "type": "maîtrisable",
             "priorite": "moyenne",
-            "archived": False
+            "archived": False,
         })
     )
-    if isinstance(resultat, tuple):
-        return resultat
+    if resultat is None:
+        sous_objectif = storage.create_sous_objectif(objectif_id, texte)
+        if sous_objectif is None:
+            return erreur_api("Cet objectif est gelé.")
+
+        return jsonify(sous_objectif), 201
 
     return jsonify(resultat.data[0] if resultat.data else {}), 201
 
@@ -200,6 +251,7 @@ def api_modifier_sous_objectif(sous_objectif_id):
 
     if "accompli" in data:
         updates["accompli"] = bool(data["accompli"])
+        updates["etat"] = "accompli" if updates["accompli"] else "en attente"
 
     if "temps" in data:
         try:
@@ -211,6 +263,10 @@ def api_modifier_sous_objectif(sous_objectif_id):
 
     if "etat" in data and data["etat"] in ETATS_SOUS_OBJECTIFS:
         updates["etat"] = data["etat"]
+        if data["etat"] == "accompli":
+            updates["accompli"] = True
+        elif "accompli" not in data:
+            updates["accompli"] = False
 
     if "type" in data and data["type"] in TYPES_SOUS_OBJECTIFS:
         updates["type"] = data["type"]
@@ -225,8 +281,9 @@ def api_modifier_sous_objectif(sous_objectif_id):
         return erreur_api("Aucune donnée valide à modifier.")
 
     resultat = executer_supabase(supabase.table("sous_objectifs").update(updates).eq("id", sous_objectif_id))
-    if isinstance(resultat, tuple):
-        return resultat
+    if resultat is None:
+        sous_objectif = storage.update_sous_objectif(sous_objectif_id, updates)
+        return jsonify(sous_objectif or {})
 
     return jsonify(resultat.data[0] if resultat.data else {})
 
@@ -234,20 +291,24 @@ def api_modifier_sous_objectif(sous_objectif_id):
 @app.delete("/api/sous-objectifs/<sous_objectif_id>")
 def api_supprimer_sous_objectif(sous_objectif_id):
     resultat = executer_supabase(supabase.table("sous_objectifs").delete().eq("id", sous_objectif_id))
-    if isinstance(resultat, tuple):
-        return resultat
+    if resultat is None:
+        storage.delete_sous_objectif(sous_objectif_id)
+        return "", 204
 
     return "", 204
 
-@app.route('/favicon.ico')
+
+@app.route("/favicon.ico")
 def favicon():
-    return send_from_directory('static/icons', 'favicon.ico')
+    return send_from_directory("static/icons", "favicon.ico")
 
-@app.route('/service-worker.js')
+
+@app.route("/service-worker.js")
 def service_worker():
-    return send_from_directory('static', 'service-worker.js')
+    return send_from_directory("static", "service-worker.js")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
     app.run(host="0.0.0.0", port=port, debug=debug)
