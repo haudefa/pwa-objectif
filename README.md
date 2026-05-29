@@ -30,6 +30,32 @@ Puis ouvrir :
 http://127.0.0.1:5000
 ```
 
+## Production
+
+Le démarrage production utilise Gunicorn :
+
+```text
+web: gunicorn app:app
+```
+
+Variables recommandées :
+
+```text
+SECRET_KEY=une-cle-longue-aleatoire
+OBJECTIF_PASSWORD=mot-de-passe-fort
+OBJECTIF_DATA_FILE=/tmp/pwa_objectif/data.json
+```
+
+Si la plateforme fournit un disque persistant, mettez `OBJECTIF_DATA_FILE` sur ce disque. Sans disque persistant, les données locales peuvent disparaître au redémarrage. Pour une production durable, configurez Supabase ou un stockage persistant.
+
+Diagnostic production :
+
+```text
+/api/health
+```
+
+Cette route indique si Supabase est configuré, le mode utilisé et si le stockage local est écrivable.
+
 ## Variables d'environnement
 
 - `OBJECTIF_PASSWORD` : mot de passe de connexion.

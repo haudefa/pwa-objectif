@@ -3,6 +3,7 @@ from io import BytesIO
 import json
 import os
 import secrets
+import tempfile
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
@@ -23,7 +24,18 @@ app.secret_key = os.environ.get("SECRET_KEY", "objectif-dev")
 app.config["AUTH_PASSWORD"] = os.environ.get("OBJECTIF_PASSWORD", "objectif123")
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["DATA_FILE"] = os.environ.get("OBJECTIF_DATA_FILE", os.path.join(app.root_path, "data.json"))
+
+
+def chemin_donnees_par_defaut():
+    chemin_local = os.path.join(app.root_path, "data.json")
+
+    if os.access(app.root_path, os.W_OK):
+        return chemin_local
+
+    return os.path.join(tempfile.gettempdir(), "pwa_objectif", "data.json")
+
+
+app.config["DATA_FILE"] = os.environ.get("OBJECTIF_DATA_FILE", chemin_donnees_par_defaut())
 
 storage = LocalObjectifStorage(app.config["DATA_FILE"])
 
@@ -60,7 +72,7 @@ def verifier_csrf():
 
 @app.before_request
 def verifier_authentification():
-    endpoints_publics = {"login", "static", "favicon", "service_worker"}
+    endpoints_publics = {"login", "static", "favicon", "service_worker", "api_health"}
 
     if request.endpoint in endpoints_publics:
         return
@@ -155,6 +167,17 @@ def api_lister_objectifs():
 @app.get("/api/progression")
 def api_lister_progression():
     return jsonify(storage.list_progression())
+
+
+@app.get("/api/health")
+def api_health():
+    return jsonify({
+        "status": "ok",
+        "storage_path": storage.path,
+        "storage_writable": storage.is_writable(),
+        "supabase_configured": supabase is not None,
+        "mode": "local" if mode_local() else "supabase",
+    })
 
 
 @app.get("/api/export")

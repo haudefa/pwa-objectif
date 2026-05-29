@@ -17,6 +17,19 @@ class LocalObjectifStorage:
     def __init__(self, path):
         self.path = path
 
+    def is_writable(self):
+        directory = os.path.dirname(self.path) or "."
+
+        try:
+            os.makedirs(directory, exist_ok=True)
+            test_path = os.path.join(directory, ".write-test")
+            with open(test_path, "w", encoding="utf-8") as fichier:
+                fichier.write("ok")
+            os.remove(test_path)
+            return True
+        except OSError:
+            return False
+
     def _read_raw(self):
         if not os.path.exists(self.path):
             return {"version": 1, "objectifs": []}
@@ -43,6 +56,10 @@ class LocalObjectifStorage:
         return {"version": 1, "objectifs": []}
 
     def _write_raw(self, donnees):
+        directory = os.path.dirname(self.path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+
         if os.path.exists(self.path):
             backup_path = f"{self.path}.bak"
             shutil.copy2(self.path, backup_path)
