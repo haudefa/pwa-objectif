@@ -97,6 +97,10 @@ def executer_supabase(requete):
         return None
 
 
+def mode_local():
+    return supabase is None
+
+
 def dates_objectif_depuis_payload(data):
     start_date = normaliser_date(data.get("start_date")) or date_locale_aujourdhui()
     end_date = normaliser_date(data.get("end_date"))
@@ -138,6 +142,9 @@ def home():
 
 @app.get("/api/objectifs")
 def api_lister_objectifs():
+    if mode_local():
+        return jsonify(storage.list_objectifs())
+
     resultat = executer_supabase(supabase.table("objectifs").select("*, sous_objectifs(*)"))
     if resultat is None:
         return jsonify(storage.list_objectifs())
@@ -186,6 +193,9 @@ def api_creer_objectif():
     if not titre:
         return erreur_api("Le titre est obligatoire.")
 
+    if mode_local():
+        return jsonify(storage.create_objectif(titre, categorie, start_date, end_date)), 201
+
     resultat = executer_supabase(
         supabase.table("objectifs").insert({
             "titre": titre,
@@ -221,6 +231,10 @@ def api_modifier_objectif(objectif_id):
     if not updates:
         return erreur_api("Aucune donnée valide à modifier.")
 
+    if mode_local():
+        objectif = storage.update_objectif(objectif_id, updates)
+        return jsonify(objectif or {})
+
     resultat = executer_supabase(supabase.table("objectifs").update(updates).eq("id", objectif_id))
     if resultat is None:
         objectif = storage.update_objectif(objectif_id, updates)
@@ -231,6 +245,10 @@ def api_modifier_objectif(objectif_id):
 
 @app.delete("/api/objectifs/<objectif_id>")
 def api_supprimer_objectif(objectif_id):
+    if mode_local():
+        storage.delete_objectif(objectif_id)
+        return "", 204
+
     resultat = executer_supabase(supabase.table("objectifs").delete().eq("id", objectif_id))
     if resultat is None:
         storage.delete_objectif(objectif_id)
@@ -246,6 +264,13 @@ def api_creer_sous_objectif(objectif_id):
 
     if not texte:
         return erreur_api("Le sous-objectif est obligatoire.")
+
+    if mode_local():
+        sous_objectif = storage.create_sous_objectif(objectif_id, texte)
+        if sous_objectif is None:
+            return erreur_api("Cet objectif est gelé.")
+
+        return jsonify(sous_objectif), 201
 
     resultat = executer_supabase(
         supabase.table("sous_objectifs").insert({
@@ -305,6 +330,10 @@ def api_modifier_sous_objectif(sous_objectif_id):
     if not updates:
         return erreur_api("Aucune donnée valide à modifier.")
 
+    if mode_local():
+        sous_objectif = storage.update_sous_objectif(sous_objectif_id, updates)
+        return jsonify(sous_objectif or {})
+
     resultat = executer_supabase(supabase.table("sous_objectifs").update(updates).eq("id", sous_objectif_id))
     if resultat is None:
         sous_objectif = storage.update_sous_objectif(sous_objectif_id, updates)
@@ -315,6 +344,10 @@ def api_modifier_sous_objectif(sous_objectif_id):
 
 @app.delete("/api/sous-objectifs/<sous_objectif_id>")
 def api_supprimer_sous_objectif(sous_objectif_id):
+    if mode_local():
+        storage.delete_sous_objectif(sous_objectif_id)
+        return "", 204
+
     resultat = executer_supabase(supabase.table("sous_objectifs").delete().eq("id", sous_objectif_id))
     if resultat is None:
         storage.delete_sous_objectif(sous_objectif_id)
